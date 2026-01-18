@@ -1,19 +1,39 @@
 {
   "cli": {
-    "version": ">= 3.0.0"
+    "version": ">= 3.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://kafjvfvtqwpvhttvelks.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_wUCmXiKyZrZePNYYKvrKLw_h_dEp24e",
+        "EXPO_PUBLIC_MSG91_WIDGET_ID": "3661726b4d34323533373633",
+        "EXPO_PUBLIC_MSG91_AUTH_TOKEN": "488917TgywLftmRUy696ccd16P1"
+      }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://kafjvfvtqwpvhttvelks.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_wUCmXiKyZrZePNYYKvrKLw_h_dEp24e",
+        "EXPO_PUBLIC_MSG91_WIDGET_ID": "3661726b4d34323533373633",
+        "EXPO_PUBLIC_MSG91_AUTH_TOKEN": "488917TgywLftmRUy696ccd16P1"
       }
     },
-    "production": {}
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://kafjvfvtqwpvhttvelks.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_wUCmXiKyZrZePNYYKvrKLw_h_dEp24e",
+        "EXPO_PUBLIC_MSG91_WIDGET_ID": "3661726b4d34323533373633",
+        "EXPO_PUBLIC_MSG91_AUTH_TOKEN": "488917TgywLftmRUy696ccd16P1"
+      }
+    }
   },
   "submit": {
     "production": {}

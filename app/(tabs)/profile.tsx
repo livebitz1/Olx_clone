@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/contexts/OTPAuthContext';
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_SIZE = (width - 48) / 3;
@@ -655,6 +656,7 @@ const QuickStatsCard: React.FC<{ user: UserProfile }> = ({ user }) => {
 // Main Profile Screen
 export default function ProfileScreen() {
   const router = useRouter();
+  const { signOut, user: authUser } = useAuth();
   const [user, setUser] = useState<UserProfile>(INITIAL_USER);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -681,8 +683,9 @@ export default function ProfileScreen() {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Success', 'You have been logged out.');
+          onPress: async () => {
+            await signOut();
+            // Navigation will be handled automatically by the auth guard
           },
         },
       ]
