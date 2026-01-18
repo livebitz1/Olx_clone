@@ -54,6 +54,21 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
+        name="post"
+        options={{
+          title: 'Post',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[
+              styles.iconContainer,
+              focused && styles.iconContainerActive
+            ]}>
+              <Ionicons name={focused ? "add-circle" : "add-circle-outline"} size={24} color={color} />
+            </View>
+          ),
+        }}
+      />
+
+      <Tabs.Screen
         name="chats"
         options={{
           title: 'Chats',
