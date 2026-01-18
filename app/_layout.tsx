@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -58,6 +58,10 @@ export default function RootLayout() {
           </Stack>
         </NavigationGuard>
         <StatusBar style="auto" />
+        {/* reCAPTCHA container for Firebase Phone Auth on web */}
+        {Platform.OS === 'web' && (
+          <View nativeID="recaptcha-container" style={styles.recaptchaContainer} />
+        )}
       </ThemeProvider>
     </AuthProvider>
   );
@@ -69,5 +73,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
+  },
+  recaptchaContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    opacity: 0,
   },
 });

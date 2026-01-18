@@ -21,13 +21,13 @@ export const PRODUCTS: Product[] = [
     description:
       'Well-maintained compact car with low mileage. Recent service and new tires. Ideal for city driving and economical commutes. Clean interior and a reliable engine.',
     images: [
-      require('../../assets/images/react-logo.png'),
-      require('../../assets/images/partial-react-logo.png'),
-      require('../../assets/images/icon.png'),
+      require('../assets/images/react-logo.png'),
+      require('../assets/images/partial-react-logo.png'),
+      require('../assets/images/icon.png'),
     ],
     seller: {
       name: 'Alex Johnson',
-      avatar: require('../../assets/images/partial-react-logo.png'),
+      avatar: require('../assets/images/partial-react-logo.png'),
       rating: 4.6,
     },
   },
@@ -38,10 +38,10 @@ export const PRODUCTS: Product[] = [
     location: 'Austin, TX',
     description:
       'Comfortable 3-seater sofa in very good condition. Neutral color that fits most interiors. Smoke-free home. Measurements available on request.',
-    images: [require('../../assets/images/icon.png'), require('../../assets/images/react-logo.png')],
+    images: [require('../assets/images/icon.png'), require('../assets/images/react-logo.png')],
     seller: {
       name: 'Maya Lee',
-      avatar: require('../../assets/images/icon.png'),
+      avatar: require('../assets/images/icon.png'),
       rating: 4.8,
     },
   },
@@ -51,10 +51,10 @@ export const PRODUCTS: Product[] = [
     price: '$420',
     location: 'New York, NY',
     description: 'Excellent condition smartphone. Locked to carrier and comes with charger and case.',
-    images: [require('../../assets/images/partial-react-logo.png')],
+    images: [require('../assets/images/partial-react-logo.png')],
     seller: {
       name: 'Sam Carter',
-      avatar: require('../../assets/images/react-logo.png'),
+      avatar: require('../assets/images/react-logo.png'),
       rating: 4.5,
     },
   },

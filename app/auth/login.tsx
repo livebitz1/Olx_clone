@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TextInput,
   Pressable,
   KeyboardAvoidingView,
@@ -16,6 +15,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,7 +44,7 @@ const COUNTRIES: Country[] = [
   { code: 'MX', name: 'Mexico', dialCode: '+52', flag: '🇲🇽' },
 ];
 
-const OTP_LENGTH = 4;
+const OTP_LENGTH = 6; // Firebase uses 6-digit OTP
 
 export default function LoginScreen() {
   const router = useRouter();

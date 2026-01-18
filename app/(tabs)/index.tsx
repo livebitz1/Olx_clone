@@ -11,13 +11,13 @@ import {
   Image,
   Dimensions,
   StatusBar,
-  SafeAreaView,
   Animated,
   Modal,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { PRODUCTS, Product } from '../data/products';
+import { PRODUCTS, Product } from '@/lib/products';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 
 // Get screen dimensions with responsive breakpoints

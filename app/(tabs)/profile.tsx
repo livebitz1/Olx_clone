@@ -1,9 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Image,
@@ -14,10 +13,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/OTPAuthContext';
+import { supabase } from '@/lib/supabase';
+import type { Listing, User } from '@/lib/types';
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_SIZE = (width - 48) / 3;
@@ -41,76 +44,17 @@ const colors = {
   dangerLight: '#FEE2E2',
 };
 
-// Available avatars for selection
-const AVATAR_OPTIONS = [
-  require('../../assets/images/react-logo.png'),
-  require('../../assets/images/partial-react-logo.png'),
-  require('../../assets/images/icon.png'),
-];
+// Default avatar for users without profile picture
+const DEFAULT_AVATAR = require('../../assets/images/icon.png');
 
-// Mock user data type
-type UserProfile = {
-  id: string;
-  username: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  avatarIndex: number;
-  bio: string;
-  location: string;
-  joinedDate: string;
-  isVerified: boolean;
-  notificationsEnabled: boolean;
-  darkModeEnabled: boolean;
-  stats: {
-    activeListings: number;
-    itemsSold: number;
-    rating: number;
-    reviews: number;
-  };
-  listings: Listing[];
+// Format date to "Month Year"
+const formatJoinDate = (date: Date): string => {
+  return new Date(date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 };
 
-type Listing = {
-  id: string;
-  title: string;
-  price: string;
-  image: any;
-  isSold: boolean;
-  views: number;
-  likes: number;
-};
-
-// Initial user data
-const INITIAL_USER: UserProfile = {
-  id: 'current',
-  username: 'johndoe',
-  fullName: 'John Doe',
-  email: 'john.doe@example.com',
-  phone: '+1 (555) 123-4567',
-  avatarIndex: 0,
-  bio: 'Passionate about quality items. Fast response & reliable seller. 📦',
-  location: 'San Francisco, CA',
-  joinedDate: 'March 2023',
-  isVerified: true,
-  notificationsEnabled: true,
-  darkModeEnabled: false,
-  stats: {
-    activeListings: 8,
-    itemsSold: 24,
-    rating: 4.9,
-    reviews: 42,
-  },
-  listings: [
-    { id: 'p1', title: 'Vintage Camera', price: '$150', image: require('../../assets/images/icon.png'), isSold: false, views: 234, likes: 18 },
-    { id: 'p2', title: 'Leather Jacket', price: '$85', image: require('../../assets/images/partial-react-logo.png'), isSold: false, views: 156, likes: 12 },
-    { id: 'p3', title: 'Headphones', price: '$45', image: require('../../assets/images/react-logo.png'), isSold: true, views: 89, likes: 8 },
-    { id: 'p4', title: 'Coffee Table', price: '$120', image: require('../../assets/images/icon.png'), isSold: false, views: 312, likes: 24 },
-    { id: 'p5', title: 'Desk Lamp', price: '$35', image: require('../../assets/images/partial-react-logo.png'), isSold: false, views: 78, likes: 5 },
-    { id: 'p6', title: 'Bookshelf', price: '$95', image: require('../../assets/images/react-logo.png'), isSold: true, views: 145, likes: 11 },
-    { id: 'p7', title: 'Plant Pot', price: '$25', image: require('../../assets/images/icon.png'), isSold: false, views: 67, likes: 4 },
-    { id: 'p8', title: 'Wall Art', price: '$60', image: require('../../assets/images/partial-react-logo.png'), isSold: false, views: 198, likes: 15 },
-  ],
+// Format phone number for display
+const formatPhoneDisplay = (phone: string, countryCode: string): string => {
+  return `+${countryCode} ${phone}`;
 };
 
 // Stat Item Component
@@ -121,23 +65,7 @@ const StatItem: React.FC<{ value: string | number; label: string }> = ({ value, 
   </TouchableOpacity>
 );
 
-// Rating Stars Component
-const RatingStars: React.FC<{ rating: number }> = ({ rating }) => (
-  <View style={styles.ratingContainer}>
-    {[1, 2, 3, 4, 5].map((star) => (
-      <Ionicons
-        key={star}
-        name={star <= Math.floor(rating) ? 'star' : star - 0.5 <= rating ? 'star-half' : 'star-outline'}
-        size={14}
-        color={colors.warning}
-      />
-    ))}
-    <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
-    <Text style={styles.ratingSubtext}>(42 reviews)</Text>
-  </View>
-);
-
-// Listing Grid Item Component with enhanced UI
+// Listing Grid Item Component
 const ListingGridItem: React.FC<{
   listing: Listing;
   onPress: () => void;
@@ -146,6 +74,11 @@ const ListingGridItem: React.FC<{
 }> = ({ listing, onPress, onEdit, onDelete }) => {
   const [showActions, setShowActions] = useState(false);
 
+  // Use first image or default
+  const imageSource = listing.images && listing.images.length > 0 
+    ? { uri: listing.images[0] } 
+    : DEFAULT_AVATAR;
+
   return (
     <TouchableOpacity
       style={styles.gridItem}
@@ -153,14 +86,14 @@ const ListingGridItem: React.FC<{
       onLongPress={() => setShowActions(true)}
       activeOpacity={0.8}
     >
-      <Image source={listing.image} style={styles.gridImage} />
+      <Image source={imageSource} style={styles.gridImage} resizeMode="cover" />
       {listing.isSold && (
         <View style={styles.soldBadge}>
           <Text style={styles.soldBadgeText}>SOLD</Text>
         </View>
       )}
       <View style={styles.gridItemOverlay}>
-        <Text style={styles.gridPrice}>{listing.price}</Text>
+        <Text style={styles.gridPrice}>₹{Number(listing.price).toLocaleString()}</Text>
         <View style={styles.gridStats}>
           <Ionicons name="eye-outline" size={10} color={colors.white} />
           <Text style={styles.gridStatText}>{listing.views}</Text>
@@ -218,33 +151,38 @@ const ListingGridItem: React.FC<{
 // Edit Profile Modal Component
 const EditProfileModal: React.FC<{
   visible: boolean;
-  user: UserProfile;
+  user: User;
   onClose: () => void;
-  onSave: (updatedUser: Partial<UserProfile>) => void;
-}> = ({ visible, user, onClose, onSave }) => {
-  const [fullName, setFullName] = useState(user.fullName);
-  const [username, setUsername] = useState(user.username);
-  const [bio, setBio] = useState(user.bio);
-  const [location, setLocation] = useState(user.location);
-  const [email, setEmail] = useState(user.email);
-  const [phone, setPhone] = useState(user.phone);
-  const [selectedAvatarIndex, setSelectedAvatarIndex] = useState(user.avatarIndex);
+  onSave: (updates: Partial<User>) => Promise<void>;
+  isSaving: boolean;
+}> = ({ visible, user, onClose, onSave, isSaving }) => {
+  const [name, setName] = useState(user.name || '');
+  const [bio, setBio] = useState(user.bio || '');
+  const [location, setLocation] = useState(user.location || '');
+  const [email, setEmail] = useState(user.email || '');
 
-  const handleSave = () => {
-    if (!fullName.trim() || !username.trim()) {
-      Alert.alert('Error', 'Name and username are required');
+  // Reset form when modal opens
+  useEffect(() => {
+    if (visible) {
+      setName(user.name || '');
+      setBio(user.bio || '');
+      setLocation(user.location || '');
+      setEmail(user.email || '');
+    }
+  }, [visible, user]);
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      Alert.alert('Error', 'Name is required');
       return;
     }
-    onSave({
-      fullName: fullName.trim(),
-      username: username.trim(),
-      bio: bio.trim(),
-      location: location.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      avatarIndex: selectedAvatarIndex,
+
+    await onSave({
+      name: name.trim(),
+      bio: bio.trim() || null,
+      location: location.trim() || null,
+      email: email.trim() || null,
     });
-    onClose();
   };
 
   return (
@@ -256,66 +194,31 @@ const EditProfileModal: React.FC<{
         >
           {/* Modal Header */}
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
+            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton} disabled={isSaving}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Edit Profile</Text>
-            <TouchableOpacity onPress={handleSave} style={styles.modalSaveButton}>
-              <Text style={styles.modalSaveText}>Save</Text>
+            <TouchableOpacity onPress={handleSave} style={styles.modalSaveButton} disabled={isSaving}>
+              {isSaving ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.modalSaveText}>Save</Text>
+              )}
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-            {/* Avatar Selection */}
-            <View style={styles.avatarSection}>
-              <Text style={styles.inputLabel}>Profile Photo</Text>
-              <View style={styles.avatarOptions}>
-                {AVATAR_OPTIONS.map((avatar, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.avatarOption,
-                      selectedAvatarIndex === index && styles.avatarOptionSelected,
-                    ]}
-                    onPress={() => setSelectedAvatarIndex(index)}
-                  >
-                    <Image source={avatar} style={styles.avatarOptionImage} />
-                    {selectedAvatarIndex === index && (
-                      <View style={styles.avatarCheckmark}>
-                        <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
             {/* Form Fields */}
             <View style={styles.formSection}>
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Full Name</Text>
+                <Text style={styles.inputLabel}>Full Name *</Text>
                 <TextInput
                   style={styles.textInput}
-                  value={fullName}
-                  onChangeText={setFullName}
+                  value={name}
+                  onChangeText={setName}
                   placeholder="Enter your full name"
                   placeholderTextColor={colors.textTertiary}
                 />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Username</Text>
-                <View style={styles.usernameInput}>
-                  <Text style={styles.usernamePrefix}>@</Text>
-                  <TextInput
-                    style={[styles.textInput, styles.usernameTextInput]}
-                    value={username}
-                    onChangeText={setUsername}
-                    placeholder="username"
-                    placeholderTextColor={colors.textTertiary}
-                    autoCapitalize="none"
-                  />
-                </View>
               </View>
 
               <View style={styles.inputGroup}>
@@ -363,18 +266,14 @@ const EditProfileModal: React.FC<{
                 </View>
               </View>
 
+              {/* Phone (Read-only) */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Phone</Text>
-                <View style={styles.iconInput}>
-                  <Ionicons name="call-outline" size={20} color={colors.textSecondary} />
-                  <TextInput
-                    style={[styles.textInput, styles.iconTextInput]}
-                    value={phone}
-                    onChangeText={setPhone}
-                    placeholder="+1 (555) 000-0000"
-                    placeholderTextColor={colors.textTertiary}
-                    keyboardType="phone-pad"
-                  />
+                <Text style={styles.inputLabel}>Phone (cannot be changed)</Text>
+                <View style={[styles.iconInput, styles.disabledInput]}>
+                  <Ionicons name="call-outline" size={20} color={colors.textTertiary} />
+                  <Text style={styles.disabledText}>
+                    {formatPhoneDisplay(user.phone, user.countryCode)}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -390,17 +289,10 @@ const EditProfileModal: React.FC<{
 // Settings Modal Component
 const SettingsModal: React.FC<{
   visible: boolean;
-  user: UserProfile;
   onClose: () => void;
-  onUpdate: (settings: Partial<UserProfile>) => void;
   onLogout: () => void;
-}> = ({ visible, user, onClose, onUpdate, onLogout }) => {
-  const [darkMode, setDarkMode] = useState(user.darkModeEnabled);
-
-  const handleDarkModeToggle = (value: boolean) => {
-    setDarkMode(value);
-    onUpdate({ darkModeEnabled: value });
-  };
+}> = ({ visible, onClose, onLogout }) => {
+  const [darkMode, setDarkMode] = useState(false);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -451,7 +343,7 @@ const SettingsModal: React.FC<{
               </View>
               <Switch
                 value={darkMode}
-                onValueChange={handleDarkModeToggle}
+                onValueChange={setDarkMode}
                 trackColor={{ false: colors.border, true: colors.primaryLight }}
                 thumbColor={darkMode ? colors.primary : colors.textTertiary}
               />
@@ -520,18 +412,14 @@ const SettingsModal: React.FC<{
   );
 };
 
-// Quick Stats Card Component - Enhanced
-const QuickStatsCard: React.FC<{ user: UserProfile }> = ({ user }) => {
-  const totalViews = user.listings.reduce((acc, l) => acc + l.views, 0);
-  const totalLikes = user.listings.reduce((acc, l) => acc + l.likes, 0);
-  const activeListings = user.listings.filter((l) => !l.isSold).length;
-  const conversionRate = totalViews > 0 ? ((user.stats.itemsSold / (user.stats.itemsSold + activeListings)) * 100).toFixed(1) : '0';
+// Quick Stats Card Component
+const QuickStatsCard: React.FC<{ listings: Listing[] }> = ({ listings }) => {
+  const totalViews = listings.reduce((acc, l) => acc + l.views, 0);
+  const totalLikes = listings.reduce((acc, l) => acc + l.likes, 0);
+  const activeListings = listings.filter((l) => !l.isSold).length;
+  const soldItems = listings.filter((l) => l.isSold).length;
+  const conversionRate = listings.length > 0 ? ((soldItems / listings.length) * 100).toFixed(1) : '0';
   const engagementRate = totalViews > 0 ? ((totalLikes / totalViews) * 100).toFixed(1) : '0';
-
-  // Mock trends (positive or negative percentage)
-  const viewsTrend = 12.5;
-  const likesTrend = 8.3;
-  const salesTrend = -2.1;
 
   return (
     <View style={styles.quickStatsCard}>
@@ -539,7 +427,7 @@ const QuickStatsCard: React.FC<{ user: UserProfile }> = ({ user }) => {
       <View style={styles.quickStatsHeader}>
         <View>
           <Text style={styles.quickStatsTitle}>Your Performance</Text>
-          <Text style={styles.quickStatsSubtitle}>Last 30 days</Text>
+          <Text style={styles.quickStatsSubtitle}>All time stats</Text>
         </View>
         <TouchableOpacity style={styles.quickStatsMoreBtn} activeOpacity={0.7}>
           <Ionicons name="analytics-outline" size={20} color={colors.primary} />
@@ -554,22 +442,9 @@ const QuickStatsCard: React.FC<{ user: UserProfile }> = ({ user }) => {
             <View style={[styles.quickStatIconSmall, { backgroundColor: colors.primaryLight }]}>
               <Ionicons name="eye" size={16} color={colors.primary} />
             </View>
-            <View style={[styles.trendBadge, viewsTrend >= 0 ? styles.trendPositive : styles.trendNegative]}>
-              <Ionicons 
-                name={viewsTrend >= 0 ? "trending-up" : "trending-down"} 
-                size={10} 
-                color={viewsTrend >= 0 ? colors.success : colors.danger} 
-              />
-              <Text style={[styles.trendText, viewsTrend >= 0 ? styles.trendTextPositive : styles.trendTextNegative]}>
-                {Math.abs(viewsTrend)}%
-              </Text>
-            </View>
           </View>
           <Text style={styles.quickStatCardValue}>{totalViews.toLocaleString()}</Text>
           <Text style={styles.quickStatCardLabel}>Total Views</Text>
-          <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBar, { width: '75%', backgroundColor: colors.primary }]} />
-          </View>
         </TouchableOpacity>
 
         {/* Likes */}
@@ -578,22 +453,9 @@ const QuickStatsCard: React.FC<{ user: UserProfile }> = ({ user }) => {
             <View style={[styles.quickStatIconSmall, { backgroundColor: colors.dangerLight }]}>
               <Ionicons name="heart" size={16} color={colors.danger} />
             </View>
-            <View style={[styles.trendBadge, likesTrend >= 0 ? styles.trendPositive : styles.trendNegative]}>
-              <Ionicons 
-                name={likesTrend >= 0 ? "trending-up" : "trending-down"} 
-                size={10} 
-                color={likesTrend >= 0 ? colors.success : colors.danger} 
-              />
-              <Text style={[styles.trendText, likesTrend >= 0 ? styles.trendTextPositive : styles.trendTextNegative]}>
-                {Math.abs(likesTrend)}%
-              </Text>
-            </View>
           </View>
           <Text style={styles.quickStatCardValue}>{totalLikes.toLocaleString()}</Text>
           <Text style={styles.quickStatCardLabel}>Total Likes</Text>
-          <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBar, { width: '60%', backgroundColor: colors.danger }]} />
-          </View>
         </TouchableOpacity>
       </View>
 
@@ -606,14 +468,7 @@ const QuickStatsCard: React.FC<{ user: UserProfile }> = ({ user }) => {
             <Text style={styles.secondaryStatLabel}>Items Sold</Text>
           </View>
           <View style={styles.secondaryStatRight}>
-            <Text style={styles.secondaryStatValue}>{user.stats.itemsSold}</Text>
-            <View style={[styles.trendBadgeSmall, salesTrend >= 0 ? styles.trendPositive : styles.trendNegative]}>
-              <Ionicons 
-                name={salesTrend >= 0 ? "arrow-up" : "arrow-down"} 
-                size={8} 
-                color={salesTrend >= 0 ? colors.success : colors.danger} 
-              />
-            </View>
+            <Text style={styles.secondaryStatValue}>{soldItems}</Text>
           </View>
         </View>
 
@@ -639,16 +494,6 @@ const QuickStatsCard: React.FC<{ user: UserProfile }> = ({ user }) => {
           </View>
         </View>
       </View>
-
-      {/* Quick Insights */}
-      <View style={styles.insightsContainer}>
-        <View style={styles.insightItem}>
-          <Ionicons name="bulb-outline" size={16} color={colors.warning} />
-          <Text style={styles.insightText}>
-            Your listings get {engagementRate}% more likes than average!
-          </Text>
-        </View>
-      </View>
     </View>
   );
 };
@@ -656,40 +501,88 @@ const QuickStatsCard: React.FC<{ user: UserProfile }> = ({ user }) => {
 // Main Profile Screen
 export default function ProfileScreen() {
   const router = useRouter();
-  const { signOut, user: authUser } = useAuth();
-  const [user, setUser] = useState<UserProfile>(INITIAL_USER);
+  const { signOut, user, updateUser } = useAuth();
+  
+  // State
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [isLoadingListings, setIsLoadingListings] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [activeTab, setActiveTab] = useState<'active' | 'sold'>('active');
 
-  // Update user profile
-  const handleUpdateProfile = useCallback((updates: Partial<UserProfile>) => {
-    setUser((prev) => ({ ...prev, ...updates }));
-    Alert.alert('Success', 'Profile updated successfully!');
-  }, []);
+  // Fetch user's listings from Supabase
+  const fetchListings = useCallback(async () => {
+    if (!user) return;
 
-  // Update settings
-  const handleUpdateSettings = useCallback((updates: Partial<UserProfile>) => {
-    setUser((prev) => ({ ...prev, ...updates }));
-  }, []);
+    try {
+      setIsLoadingListings(true);
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('userId', user.id)
+        .order('createdAt', { ascending: false });
+
+      if (error) {
+        console.error('[Profile] Error fetching listings:', error.message);
+      } else {
+        setListings(data || []);
+      }
+    } catch (error) {
+      console.error('[Profile] Exception fetching listings:', error);
+    } finally {
+      setIsLoadingListings(false);
+    }
+  }, [user]);
+
+  // Fetch listings on mount
+  useEffect(() => {
+    fetchListings();
+  }, [fetchListings]);
+
+  // Update user profile
+  const handleUpdateProfile = useCallback(async (updates: Partial<User>) => {
+    try {
+      setIsSavingProfile(true);
+      await updateUser(updates);
+      setShowEditModal(false);
+      Alert.alert('Success', 'Profile updated successfully!');
+    } catch (error) {
+      console.error('[Profile] Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  }, [updateUser]);
 
   // Handle logout
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-            // Navigation will be handled automatically by the auth guard
+    setShowSettingsModal(false);
+    
+    setTimeout(() => {
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: async () => {
+              console.log('[Profile] Logging out...');
+              try {
+                await signOut();
+                console.log('[Profile] ✓ Logout successful');
+                router.replace('/auth/login');
+              } catch (error) {
+                console.error('[Profile] Logout error:', error);
+                router.replace('/auth/login');
+              }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }, 300);
   };
 
   // Handle listing actions
@@ -701,7 +594,7 @@ export default function ProfileScreen() {
     Alert.alert('Edit Listing', `Editing listing ${listingId}`);
   };
 
-  const handleDeleteListing = (listingId: string) => {
+  const handleDeleteListing = async (listingId: string) => {
     Alert.alert(
       'Delete Listing',
       'Are you sure you want to delete this listing?',
@@ -710,25 +603,45 @@ export default function ProfileScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            setUser((prev) => ({
-              ...prev,
-              listings: prev.listings.filter((l) => l.id !== listingId),
-              stats: {
-                ...prev.stats,
-                activeListings: prev.stats.activeListings - 1,
-              },
-            }));
-            Alert.alert('Success', 'Listing deleted successfully!');
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('listings')
+                .delete()
+                .eq('id', listingId);
+
+              if (error) {
+                Alert.alert('Error', 'Failed to delete listing');
+                return;
+              }
+
+              setListings((prev) => prev.filter((l) => l.id !== listingId));
+              Alert.alert('Success', 'Listing deleted successfully!');
+            } catch (error) {
+              console.error('[Profile] Delete listing error:', error);
+              Alert.alert('Error', 'Failed to delete listing');
+            }
           },
         },
       ]
     );
   };
 
-  const activeListings = user.listings.filter((l) => !l.isSold);
-  const soldListings = user.listings.filter((l) => l.isSold);
+  // If user is not logged in, show loading
+  if (!user) {
+    return (
+      <SafeAreaView style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  const activeListings = listings.filter((l) => !l.isSold);
+  const soldListings = listings.filter((l) => l.isSold);
   const displayedListings = activeTab === 'active' ? activeListings : soldListings;
+
+  // Avatar source
+  const avatarSource = user.avatar ? { uri: user.avatar } : DEFAULT_AVATAR;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -758,7 +671,7 @@ export default function ProfileScreen() {
               onPress={() => setShowEditModal(true)}
               activeOpacity={0.8}
             >
-              <Image source={AVATAR_OPTIONS[user.avatarIndex]} style={styles.avatar} />
+              <Image source={avatarSource} style={styles.avatar} />
               {user.isVerified && (
                 <View style={styles.verifiedBadge}>
                   <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
@@ -770,16 +683,16 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <View style={styles.statsRow}>
-              <StatItem value={user.stats.activeListings} label="Listings" />
-              <StatItem value={user.stats.itemsSold} label="Sold" />
-              <StatItem value={user.stats.reviews} label="Reviews" />
+              <StatItem value={activeListings.length} label="Listings" />
+              <StatItem value={soldListings.length} label="Sold" />
+              <StatItem value={0} label="Reviews" />
             </View>
           </View>
 
           {/* User Info */}
           <View style={styles.userInfo}>
             <View style={styles.nameRow}>
-              <Text style={styles.fullName}>{user.fullName}</Text>
+              <Text style={styles.fullName}>{user.name || 'User'}</Text>
               {user.isVerified && (
                 <View style={styles.verifiedTag}>
                   <Ionicons name="shield-checkmark" size={12} color={colors.primary} />
@@ -787,17 +700,23 @@ export default function ProfileScreen() {
                 </View>
               )}
             </View>
-            <Text style={styles.username}>@{user.username}</Text>
+            <Text style={styles.username}>{formatPhoneDisplay(user.phone, user.countryCode)}</Text>
 
-            <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-              <Text style={styles.location}>{user.location}</Text>
-              <Text style={styles.joinedDate}>• Joined {user.joinedDate}</Text>
-            </View>
+            {(user.location || user.createdAt) && (
+              <View style={styles.locationRow}>
+                {user.location && (
+                  <>
+                    <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+                    <Text style={styles.location}>{user.location}</Text>
+                  </>
+                )}
+                <Text style={styles.joinedDate}>
+                  {user.location ? '• ' : ''}Joined {formatJoinDate(user.createdAt)}
+                </Text>
+              </View>
+            )}
 
-            <Text style={styles.bio}>{user.bio}</Text>
-
-            <RatingStars rating={user.stats.rating} />
+            {user.bio && <Text style={styles.bio}>{user.bio}</Text>}
           </View>
 
           {/* Action Buttons */}
@@ -821,7 +740,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Quick Stats */}
-        <QuickStatsCard user={user} />
+        <QuickStatsCard listings={listings} />
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
@@ -854,7 +773,11 @@ export default function ProfileScreen() {
         </View>
 
         {/* Listings Grid */}
-        {displayedListings.length > 0 ? (
+        {isLoadingListings ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : displayedListings.length > 0 ? (
           <View style={styles.listingsGrid}>
             {displayedListings.map((listing) => (
               <ListingGridItem
@@ -884,7 +807,10 @@ export default function ProfileScreen() {
                 : 'Your sold items will appear here'}
             </Text>
             {activeTab === 'active' && (
-              <TouchableOpacity style={styles.emptyStateButton}>
+              <TouchableOpacity 
+                style={styles.emptyStateButton}
+                onPress={() => router.push('/(tabs)/post')}
+              >
                 <Ionicons name="add" size={20} color={colors.white} />
                 <Text style={styles.emptyStateButtonText}>Create Listing</Text>
               </TouchableOpacity>
@@ -901,14 +827,13 @@ export default function ProfileScreen() {
         user={user}
         onClose={() => setShowEditModal(false)}
         onSave={handleUpdateProfile}
+        isSaving={isSavingProfile}
       />
 
       {/* Settings Modal */}
       <SettingsModal
         visible={showSettingsModal}
-        user={user}
         onClose={() => setShowSettingsModal(false)}
-        onUpdate={handleUpdateSettings}
         onLogout={handleLogout}
       />
     </SafeAreaView>
@@ -919,6 +844,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   topBar: {
     flexDirection: 'row',
@@ -1621,6 +1555,13 @@ const styles = StyleSheet.create({
   iconTextInput: {
     flex: 1,
     borderWidth: 0,
+  },
+  disabledInput: {
+    backgroundColor: colors.border,
+  },
+  disabledText: {
+    fontSize: 15,
+    color: colors.textTertiary,
   },
 
   // Settings Styles
