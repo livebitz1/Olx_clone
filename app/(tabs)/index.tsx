@@ -13,6 +13,8 @@ import {
   StatusBar,
   SafeAreaView,
   Animated,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { PRODUCTS, Product } from '../data/products';
@@ -83,8 +85,419 @@ const categoriesData = [
   { id: '8', name: 'More', icon: 'apps-outline', color: '#6366F1' },
 ];
 
+// Price range options for filter
+const PRICE_RANGES = [
+  { id: 'any', label: 'Any Price', min: 0, max: Infinity },
+  { id: 'under100', label: 'Under $100', min: 0, max: 100 },
+  { id: '100to500', label: '$100 - $500', min: 100, max: 500 },
+  { id: '500to1000', label: '$500 - $1,000', min: 500, max: 1000 },
+  { id: 'over1000', label: 'Over $1,000', min: 1000, max: Infinity },
+];
+
+// Condition options for filter
+const CONDITIONS = [
+  { id: 'any', label: 'Any Condition' },
+  { id: 'new', label: 'New' },
+  { id: 'like_new', label: 'Like New' },
+  { id: 'used', label: 'Used' },
+];
+
+// Location options for filter
+const LOCATIONS = [
+  { id: 'any', label: 'All Locations' },
+  { id: 'san_francisco', label: 'San Francisco, CA' },
+  { id: 'austin', label: 'Austin, TX' },
+  { id: 'new_york', label: 'New York, NY' },
+  { id: 'los_angeles', label: 'Los Angeles, CA' },
+];
+
+// Filter Modal Component
+const FilterModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  filters: {
+    category: string | null;
+    priceRange: string;
+    condition: string;
+    location: string;
+  };
+  onApplyFilters: (filters: {
+    category: string | null;
+    priceRange: string;
+    condition: string;
+    location: string;
+  }) => void;
+}> = ({ visible, onClose, filters, onApplyFilters }) => {
+  const [tempFilters, setTempFilters] = useState(filters);
+
+  React.useEffect(() => {
+    setTempFilters(filters);
+  }, [filters, visible]);
+
+  const handleApply = () => {
+    onApplyFilters(tempFilters);
+    onClose();
+  };
+
+  const handleReset = () => {
+    const defaultFilters = {
+      category: null,
+      priceRange: 'any',
+      condition: 'any',
+      location: 'any',
+    };
+    setTempFilters(defaultFilters);
+  };
+
+  const activeFiltersCount = [
+    tempFilters.category !== null,
+    tempFilters.priceRange !== 'any',
+    tempFilters.condition !== 'any',
+    tempFilters.location !== 'any',
+  ].filter(Boolean).length;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={filterStyles.container}>
+        {/* Header */}
+        <View style={filterStyles.header}>
+          <TouchableOpacity onPress={onClose} style={filterStyles.closeButton}>
+            <Ionicons name="close" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={filterStyles.headerTitle}>Filters</Text>
+          <TouchableOpacity onPress={handleReset}>
+            <Text style={filterStyles.resetText}>Reset</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={filterStyles.content} showsVerticalScrollIndicator={false}>
+          {/* Category Filter */}
+          <View style={filterStyles.section}>
+            <Text style={filterStyles.sectionTitle}>Category</Text>
+            <View style={filterStyles.optionsGrid}>
+              <TouchableOpacity
+                style={[
+                  filterStyles.optionChip,
+                  tempFilters.category === null && filterStyles.optionChipSelected,
+                ]}
+                onPress={() => setTempFilters({ ...tempFilters, category: null })}
+              >
+                <Text
+                  style={[
+                    filterStyles.optionText,
+                    tempFilters.category === null && filterStyles.optionTextSelected,
+                  ]}
+                >
+                  All
+                </Text>
+              </TouchableOpacity>
+              {categoriesData.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[
+                    filterStyles.optionChip,
+                    tempFilters.category === cat.id && filterStyles.optionChipSelected,
+                  ]}
+                  onPress={() => setTempFilters({ ...tempFilters, category: cat.id })}
+                >
+                  <Ionicons
+                    name={cat.icon as any}
+                    size={16}
+                    color={tempFilters.category === cat.id ? colors.white : cat.color}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[
+                      filterStyles.optionText,
+                      tempFilters.category === cat.id && filterStyles.optionTextSelected,
+                    ]}
+                  >
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Price Range Filter */}
+          <View style={filterStyles.section}>
+            <Text style={filterStyles.sectionTitle}>Price Range</Text>
+            <View style={filterStyles.optionsList}>
+              {PRICE_RANGES.map((range) => (
+                <TouchableOpacity
+                  key={range.id}
+                  style={[
+                    filterStyles.listOption,
+                    tempFilters.priceRange === range.id && filterStyles.listOptionSelected,
+                  ]}
+                  onPress={() => setTempFilters({ ...tempFilters, priceRange: range.id })}
+                >
+                  <Text
+                    style={[
+                      filterStyles.listOptionText,
+                      tempFilters.priceRange === range.id && filterStyles.listOptionTextSelected,
+                    ]}
+                  >
+                    {range.label}
+                  </Text>
+                  {tempFilters.priceRange === range.id && (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Condition Filter */}
+          <View style={filterStyles.section}>
+            <Text style={filterStyles.sectionTitle}>Condition</Text>
+            <View style={filterStyles.optionsRow}>
+              {CONDITIONS.map((cond) => (
+                <TouchableOpacity
+                  key={cond.id}
+                  style={[
+                    filterStyles.conditionChip,
+                    tempFilters.condition === cond.id && filterStyles.conditionChipSelected,
+                  ]}
+                  onPress={() => setTempFilters({ ...tempFilters, condition: cond.id })}
+                >
+                  <Text
+                    style={[
+                      filterStyles.conditionText,
+                      tempFilters.condition === cond.id && filterStyles.conditionTextSelected,
+                    ]}
+                  >
+                    {cond.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Location Filter */}
+          <View style={filterStyles.section}>
+            <Text style={filterStyles.sectionTitle}>Location</Text>
+            <View style={filterStyles.optionsList}>
+              {LOCATIONS.map((loc) => (
+                <TouchableOpacity
+                  key={loc.id}
+                  style={[
+                    filterStyles.listOption,
+                    tempFilters.location === loc.id && filterStyles.listOptionSelected,
+                  ]}
+                  onPress={() => setTempFilters({ ...tempFilters, location: loc.id })}
+                >
+                  <View style={filterStyles.locationOption}>
+                    <Ionicons
+                      name="location-outline"
+                      size={18}
+                      color={tempFilters.location === loc.id ? colors.primary : colors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        filterStyles.listOptionText,
+                        tempFilters.location === loc.id && filterStyles.listOptionTextSelected,
+                      ]}
+                    >
+                      {loc.label}
+                    </Text>
+                  </View>
+                  {tempFilters.location === loc.id && (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={{ height: 100 }} />
+        </ScrollView>
+
+        {/* Apply Button */}
+        <View style={filterStyles.footer}>
+          <TouchableOpacity style={filterStyles.applyButton} onPress={handleApply}>
+            <Text style={filterStyles.applyButtonText}>
+              Apply Filters {activeFiltersCount > 0 ? `(${activeFiltersCount})` : ''}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </Modal>
+  );
+};
+
+// Filter Modal Styles
+const filterStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  resetText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  section: {
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  optionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  optionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  optionChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  optionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  optionTextSelected: {
+    color: colors.white,
+  },
+  optionsList: {
+    gap: 8,
+  },
+  listOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  listOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  listOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  listOptionTextSelected: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  locationOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  conditionChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  conditionChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  conditionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  conditionTextSelected: {
+    color: colors.white,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    paddingBottom: 32,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  applyButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  applyButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.white,
+  },
+});
+
 // Search Bar Component
-const SearchBar: React.FC<{ onSearchChange: (t: string) => void }> = ({ onSearchChange }) => (
+const SearchBar: React.FC<{
+  onSearchChange: (t: string) => void;
+  onFilterPress: () => void;
+  hasActiveFilters: boolean;
+}> = ({ onSearchChange, onFilterPress, hasActiveFilters }) => (
   <View style={styles.searchContainer}>
     <View style={styles.searchInputWrapper}>
       <Ionicons name="search" size={20} color={colors.textTertiary} />
@@ -94,8 +507,9 @@ const SearchBar: React.FC<{ onSearchChange: (t: string) => void }> = ({ onSearch
         placeholderTextColor={colors.textTertiary}
         onChangeText={onSearchChange}
       />
-      <TouchableOpacity style={styles.filterButton}>
+      <TouchableOpacity style={styles.filterButton} onPress={onFilterPress}>
         <Ionicons name="options-outline" size={20} color={colors.primary} />
+        {hasActiveFilters && <View style={styles.filterBadge} />}
       </TouchableOpacity>
     </View>
   </View>
@@ -269,6 +683,13 @@ export default function HomeScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [filters, setFilters] = useState({
+    category: null as string | null,
+    priceRange: 'any',
+    condition: 'any',
+    location: 'any',
+  });
 
   const handleCategoryPress = (categoryId: string) => {
     setSelectedCategory(selectedCategory === categoryId ? null : categoryId);
@@ -278,20 +699,61 @@ export default function HomeScreen() {
     router.push(`/listing/${listing.id}`);
   };
 
-  // Simple local filtering (search + category)
+  const handleApplyFilters = (newFilters: typeof filters) => {
+    setFilters(newFilters);
+    // Also sync category selection with filter modal category
+    setSelectedCategory(newFilters.category);
+  };
+
+  const hasActiveFilters =
+    filters.category !== null ||
+    filters.priceRange !== 'any' ||
+    filters.condition !== 'any' ||
+    filters.location !== 'any';
+
+  // Parse price from string like "$7,500" to number
+  const parsePrice = (priceStr: string): number => {
+    return parseFloat(priceStr.replace(/[^0-9.]/g, '')) || 0;
+  };
+
+  // Get price range bounds
+  const getPriceRange = (rangeId: string) => {
+    const range = PRICE_RANGES.find((r) => r.id === rangeId);
+    return range ? { min: range.min, max: range.max } : { min: 0, max: Infinity };
+  };
+
+  // Get location filter value
+  const getLocationFilter = (locId: string) => {
+    const loc = LOCATIONS.find((l) => l.id === locId);
+    return loc && loc.id !== 'any' ? loc.label.toLowerCase() : null;
+  };
+
+  // Enhanced filtering with all filter options
   const filtered = PRODUCTS.filter((p) => {
     const matchesSearch =
       searchQuery.trim() === '' ||
       p.title.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
       p.location.toLowerCase().includes(searchQuery.trim().toLowerCase());
 
+    // Category filter (use filters.category if set, otherwise selectedCategory for horizontal scroll selection)
+    const activeCategory = filters.category || selectedCategory;
     const matchesCategory =
-      !selectedCategory ||
-      (selectedCategory === '6' && p.title.toLowerCase().includes('car')) ||
-      (selectedCategory === '3' && p.title.toLowerCase().includes('sofa')) ||
-      (selectedCategory === '2' && !p.title.toLowerCase().includes('car') && !p.title.toLowerCase().includes('sofa'));
+      !activeCategory ||
+      (activeCategory === '6' && p.title.toLowerCase().includes('car')) ||
+      (activeCategory === '3' && p.title.toLowerCase().includes('sofa')) ||
+      (activeCategory === '1' && p.title.toLowerCase().includes('smartphone')) ||
+      (activeCategory === '2' && !p.title.toLowerCase().includes('car') && !p.title.toLowerCase().includes('sofa'));
 
-    return matchesSearch && matchesCategory;
+    // Price range filter
+    const priceRange = getPriceRange(filters.priceRange);
+    const productPrice = parsePrice(p.price);
+    const matchesPrice = productPrice >= priceRange.min && productPrice <= priceRange.max;
+
+    // Location filter
+    const locationFilter = getLocationFilter(filters.location);
+    const matchesLocation = !locationFilter || p.location.toLowerCase().includes(locationFilter);
+
+    return matchesSearch && matchesCategory && matchesPrice && matchesLocation;
   });
 
   const numColumns = getNumColumns();
@@ -331,7 +793,19 @@ export default function HomeScreen() {
         scrollEventThrottle={16}
       >
         {/* Search Bar */}
-        <SearchBar onSearchChange={setSearchQuery} />
+        <SearchBar
+          onSearchChange={setSearchQuery}
+          onFilterPress={() => setFilterModalVisible(true)}
+          hasActiveFilters={hasActiveFilters}
+        />
+
+        {/* Filter Modal */}
+        <FilterModal
+          visible={filterModalVisible}
+          onClose={() => setFilterModalVisible(false)}
+          filters={filters}
+          onApplyFilters={handleApplyFilters}
+        />
 
         {/* Promotional Banner */}
         <PromoBanner />
@@ -528,6 +1002,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.danger,
   },
 
   // Promo Banner
