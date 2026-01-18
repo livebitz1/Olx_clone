@@ -12,22 +12,11 @@ import {
   Dimensions,
   StatusBar,
   SafeAreaView,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { PRODUCTS, Product } from '../data/products';
-import {
-  Smartphone,
-  Shirt,
-  Home,
-  Zap,
-  Book,
-  Car,
-  Search,
-  MapPin,
-  Star,
-  Heart,
-  ChevronRight,
-} from 'lucide-react-native';
+import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 
 // Get screen dimensions with responsive breakpoints
 const { width, height } = Dimensions.get('window');
@@ -40,12 +29,10 @@ const BREAKPOINTS = {
   XLARGE: 1280,
 };
 
-// Determine device type and orientation
+// Determine device type
 const isSmallScreen = width < BREAKPOINTS.SMALL;
 const isMediumScreen = width >= BREAKPOINTS.SMALL && width < BREAKPOINTS.MEDIUM;
 const isLargeScreen = width >= BREAKPOINTS.MEDIUM && width < BREAKPOINTS.LARGE;
-const isXLargeScreen = width >= BREAKPOINTS.LARGE;
-const isTablet = width > 600;
 
 // Responsive spacing function
 const getResponsiveValue = (small: number, medium: number, large: number, xlarge?: number) => {
@@ -65,42 +52,51 @@ const getNumColumns = () => {
 
 // Color scheme - Professional & Modern
 const colors = {
-  background: '#fafbfc',
-  white: '#ffffff',
-  text: '#0f172a',
-  textSecondary: '#64748b',
-  textTertiary: '#94a3b8',
-  border: '#e2e8f0',
-  primary: '#0f766e',
-  primaryLight: '#f0fdfa',
-  accent: '#06b6d4',
-  accentLight: '#ecf9fb',
-  success: '#16a34a',
-  warning: '#ea580c',
-  shadow: '#00000008',
+  background: '#F8FAFC',
+  white: '#FFFFFF',
+  text: '#0F172A',
+  textSecondary: '#64748B',
+  textTertiary: '#94A3B8',
+  border: '#E2E8F0',
+  primary: '#2F80ED',
+  primaryLight: '#EFF6FF',
+  primaryDark: '#1E40AF',
+  accent: '#8B5CF6',
+  accentLight: '#F5F3FF',
+  success: '#10B981',
+  warning: '#F59E0B',
+  danger: '#EF4444',
+  shadow: '#0F172A',
+  gradient1: '#3B82F6',
+  gradient2: '#8B5CF6',
 };
 
-// Mock Categories Data
+// Mock Categories Data with proper icons
 const categoriesData = [
-  { id: '1', name: 'Electronics', icon: Smartphone, color: '#dc2626' },
-  { id: '2', name: 'Fashion', icon: Shirt, color: '#7c3aed' },
-  { id: '3', name: 'Home', icon: Home, color: '#f59e0b' },
-  { id: '4', name: 'Sports', icon: Zap, color: '#10b981' },
-  { id: '5', name: 'Books', icon: Book, color: '#6366f1' },
-  { id: '6', name: 'Vehicles', icon: Car, color: '#f97316' },
+  { id: '1', name: 'Electronics', icon: 'laptop-outline', color: '#3B82F6' },
+  { id: '2', name: 'Fashion', icon: 'shirt-outline', color: '#EC4899' },
+  { id: '3', name: 'Home', icon: 'home-outline', color: '#F59E0B' },
+  { id: '4', name: 'Sports', icon: 'fitness-outline', color: '#10B981' },
+  { id: '5', name: 'Books', icon: 'book-outline', color: '#8B5CF6' },
+  { id: '6', name: 'Vehicles', icon: 'car-outline', color: '#EF4444' },
+  { id: '7', name: 'Toys', icon: 'game-controller-outline', color: '#F97316' },
+  { id: '8', name: 'More', icon: 'apps-outline', color: '#6366F1' },
 ];
 
 // Search Bar Component
 const SearchBar: React.FC<{ onSearchChange: (t: string) => void }> = ({ onSearchChange }) => (
   <View style={styles.searchContainer}>
     <View style={styles.searchInputWrapper}>
-      <Search width={20} height={20} color={colors.textTertiary} />
+      <Ionicons name="search" size={20} color={colors.textTertiary} />
       <TextInput
         style={styles.searchInput}
-        placeholder="Search listings..."
+        placeholder="Search for anything..."
         placeholderTextColor={colors.textTertiary}
         onChangeText={onSearchChange}
       />
+      <TouchableOpacity style={styles.filterButton}>
+        <Ionicons name="options-outline" size={20} color={colors.primary} />
+      </TouchableOpacity>
     </View>
   </View>
 );
@@ -111,7 +107,6 @@ const CategoryCard: React.FC<{
   onPress: () => void;
   isSelected: boolean;
 }> = ({ category, onPress, isSelected }) => {
-  const IconComponent = category.icon;
   return (
     <TouchableOpacity 
       style={[
@@ -119,24 +114,26 @@ const CategoryCard: React.FC<{
         isSelected && styles.categoryCardSelected
       ]} 
       onPress={onPress} 
-      activeOpacity={0.75}
+      activeOpacity={0.7}
     >
       <View 
         style={[
           styles.categoryIconContainer, 
-          { backgroundColor: isSelected ? category.color : `${category.color}15` }
+          { 
+            backgroundColor: isSelected ? category.color : colors.white,
+            borderColor: isSelected ? category.color : colors.border,
+          }
         ]}
       >
-        <IconComponent 
-          width={getResponsiveValue(28, 32, 36)} 
-          height={getResponsiveValue(28, 32, 36)} 
-          color={isSelected ? colors.white : category.color} 
-          strokeWidth={1.5} 
+        <Ionicons 
+          name={category.icon as any}
+          size={getResponsiveValue(24, 26, 28)} 
+          color={isSelected ? colors.white : category.color}
         />
       </View>
       <Text style={[
         styles.categoryName,
-        isSelected && styles.categoryNameSelected
+        isSelected && { color: category.color }
       ]}>
         {category.name}
       </Text>
@@ -145,50 +142,126 @@ const CategoryCard: React.FC<{
 };
 
 // Featured Listing Card Component
-const ListingCard: React.FC<{ listing: Product; onPress: () => void }> = ({ listing, onPress }) => (
-  <TouchableOpacity style={styles.listingCard} onPress={onPress} activeOpacity={0.9}>
-    {/* Product Image Container */}
-    <View style={styles.imageContainer}>
-      {listing.images && listing.images[0] ? (
-        <Image source={listing.images[0]} style={styles.productImage} resizeMode="cover" />
-      ) : (
-        <View style={[styles.productImage, { backgroundColor: colors.border }]} />
-      )}
-      
-      {/* Price Tag */}
-      <View style={styles.priceTag}>
-        <Text style={styles.priceText}>{listing.price}</Text>
-      </View>
+const ListingCard: React.FC<{ listing: Product; onPress: () => void }> = ({ listing, onPress }) => {
+  const [isFavorited, setIsFavorited] = useState(false);
 
-      {/* Favorite Button */}
-      <TouchableOpacity style={styles.favoriteButton} activeOpacity={0.7}>
-        <Heart width={18} height={18} color={colors.white} fill={colors.white} />
-      </TouchableOpacity>
-    </View>
-
-    {/* Product Details */}
-    <View style={styles.listingDetails}>
-      <Text style={styles.listingTitle} numberOfLines={2}>
-        {listing.title}
-      </Text>
-
-      <View style={styles.locationContainer}>
-        <MapPin width={14} height={14} color={colors.textSecondary} />
-        <Text style={styles.locationText} numberOfLines={1}>
-          {listing.location}
-        </Text>
-      </View>
-
-      {/* Footer with Rating and Arrow */}
-      <View style={styles.listingFooter}>
-        <View style={styles.ratingContainer}>
-          <Star width={14} height={14} color={colors.warning} fill={colors.warning} />
-          <Text style={styles.ratingText}>4.8</Text>
+  return (
+    <TouchableOpacity style={styles.listingCard} onPress={onPress} activeOpacity={0.9}>
+      {/* Product Image Container */}
+      <View style={styles.imageContainer}>
+        {listing.images && listing.images[0] ? (
+          <Image source={listing.images[0]} style={styles.productImage} resizeMode="cover" />
+        ) : (
+          <View style={[styles.productImage, styles.imagePlaceholder]}>
+            <Ionicons name="image-outline" size={48} color={colors.textTertiary} />
+          </View>
+        )}
+        
+        {/* Featured Badge */}
+        <View style={styles.featuredBadge}>
+          <Ionicons name="star" size={12} color="#FFF" />
+          <Text style={styles.featuredText}>Featured</Text>
         </View>
-        <ChevronRight width={16} height={16} color={colors.accent} />
+
+        {/* Favorite Button */}
+        <TouchableOpacity 
+          style={styles.favoriteButton} 
+          activeOpacity={0.7}
+          onPress={() => setIsFavorited(!isFavorited)}
+        >
+          <Ionicons 
+            name={isFavorited ? "heart" : "heart-outline"} 
+            size={20} 
+            color={isFavorited ? colors.danger : colors.white}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Product Details */}
+      <View style={styles.listingDetails}>
+        <View style={styles.priceRow}>
+          <Text style={styles.priceText}>{listing.price}</Text>
+          <View style={styles.conditionBadge}>
+            <Text style={styles.conditionText}>New</Text>
+          </View>
+        </View>
+
+        <Text style={styles.listingTitle} numberOfLines={2}>
+          {listing.title}
+        </Text>
+
+        <View style={styles.locationContainer}>
+          <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+          <Text style={styles.locationText} numberOfLines={1}>
+            {listing.location}
+          </Text>
+        </View>
+
+        {/* Footer with Seller Info */}
+        <View style={styles.listingFooter}>
+          <View style={styles.sellerInfo}>
+            <Image 
+              source={require('../../assets/images/partial-react-logo.png')} 
+              style={styles.sellerAvatar}
+            />
+            <View style={styles.ratingContainer}>
+              <Ionicons name="star" size={12} color={colors.warning} />
+              <Text style={styles.ratingText}>4.8</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// Quick Stats Component
+const QuickStats: React.FC = () => (
+  <View style={styles.statsContainer}>
+    <View style={styles.statCard}>
+      <View style={styles.statIconContainer}>
+        <Ionicons name="pricetags" size={20} color={colors.primary} />
+      </View>
+      <Text style={styles.statValue}>2.4k+</Text>
+      <Text style={styles.statLabel}>Active Listings</Text>
+    </View>
+    
+    <View style={styles.statCard}>
+      <View style={styles.statIconContainer}>
+        <Ionicons name="people" size={20} color={colors.success} />
+      </View>
+      <Text style={styles.statValue}>15k+</Text>
+      <Text style={styles.statLabel}>Happy Users</Text>
+    </View>
+    
+    <View style={styles.statCard}>
+      <View style={styles.statIconContainer}>
+        <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
+      </View>
+      <Text style={styles.statValue}>98%</Text>
+      <Text style={styles.statLabel}>Success Rate</Text>
+    </View>
+  </View>
+);
+
+// Promotional Banner Component
+const PromoBanner: React.FC = () => (
+  <View style={styles.promoBanner}>
+    <View style={styles.promoContent}>
+      <View style={styles.promoIcon}>
+        <Ionicons name="gift" size={24} color={colors.white} />
+      </View>
+      <View style={styles.promoText}>
+        <Text style={styles.promoTitle}>Special Offer!</Text>
+        <Text style={styles.promoSubtitle}>Get 20% off on your first purchase</Text>
       </View>
     </View>
-  </TouchableOpacity>
+    <TouchableOpacity style={styles.promoButton}>
+      <Text style={styles.promoButtonText}>Claim Now</Text>
+      <Ionicons name="arrow-forward" size={14} color={colors.primary} />
+    </TouchableOpacity>
+  </View>
 );
 
 // Main Home Screen Component
@@ -225,27 +298,52 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
+
+      {/* Top Navigation Bar */}
+      <View style={styles.topNav}>
+        <View style={styles.navLeft}>
+          <TouchableOpacity style={styles.menuButton}>
+            <Ionicons name="menu" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.navGreeting}>Hello, User 👋</Text>
+            <View style={styles.locationRow}>
+              <Ionicons name="location" size={14} color={colors.primary} />
+              <Text style={styles.navLocation}>Jaipur, India</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.navRight}>
+          <TouchableOpacity style={styles.navIconButton}>
+            <Ionicons name="notifications-outline" size={24} color={colors.text} />
+            <View style={styles.notificationDot} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navIconButton}>
+            <Ionicons name="chatbubble-outline" size={22} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Marketplace</Text>
-            <Text style={styles.headerSubtitle}>Discover amazing items near you</Text>
-          </View>
-        </View>
-
         {/* Search Bar */}
         <SearchBar onSearchChange={setSearchQuery} />
 
+        {/* Promotional Banner */}
+        <PromoBanner />
+
         {/* Categories Section */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Shop by Category</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Categories</Text>
+            <TouchableOpacity activeOpacity={0.7}>
+              <Text style={styles.seeAllLink}>See All</Text>
+            </TouchableOpacity>
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -264,14 +362,20 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
+        {/* Quick Stats */}
+        <QuickStats />
+
         {/* Featured Listings Section */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {selectedCategory ? 'Filtered Listings' : 'Featured Listings'}
-            </Text>
+            <View style={styles.sectionTitleContainer}>
+              <Ionicons name="flame" size={22} color={colors.danger} />
+              <Text style={styles.sectionTitle}>
+                {selectedCategory ? 'Filtered Items' : 'Trending Now'}
+              </Text>
+            </View>
             <TouchableOpacity activeOpacity={0.7}>
-              <Text style={styles.seeAllLink}>See All →</Text>
+              <Text style={styles.seeAllLink}>View All →</Text>
             </TouchableOpacity>
           </View>
 
@@ -300,6 +404,7 @@ export default function HomeScreen() {
 
           {filtered.length === 0 && (
             <View style={styles.emptyState}>
+              <Ionicons name="search-outline" size={64} color={colors.textTertiary} />
               <Text style={styles.emptyStateText}>No listings found</Text>
               <Text style={styles.emptyStateSubtext}>Try adjusting your search or filters</Text>
             </View>
@@ -323,50 +428,85 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Header Styles
-  header: {
-    paddingHorizontal: getResponsiveValue(16, 24, 32, 48),
-    paddingTop: getResponsiveValue(16, 20, 24, 28),
-    paddingBottom: getResponsiveValue(16, 20, 24, 28),
+  // Top Navigation
+  topNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  headerContent: {
-    maxWidth: 1400,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  headerTitle: {
-    fontSize: getResponsiveValue(28, 32, 40, 48),
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: getResponsiveValue(4, 6, 8, 10),
-    letterSpacing: -0.8,
-  },
-  headerSubtitle: {
-    fontSize: getResponsiveValue(14, 15, 16, 18),
-    color: colors.textSecondary,
-    fontWeight: '500',
-    letterSpacing: -0.1,
-  },
-
-  // Search Bar Styles
-  searchContainer: {
-    paddingHorizontal: getResponsiveValue(16, 24, 32, 48),
-    paddingVertical: getResponsiveValue(16, 18, 20, 24),
-    maxWidth: 1400,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  searchInputWrapper: {
-    height: getResponsiveValue(48, 52, 56, 60),
-    backgroundColor: colors.white,
-    borderRadius: getResponsiveValue(12, 14, 16, 18),
-    paddingHorizontal: getResponsiveValue(14, 16, 18, 20),
+  navLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navGreeting: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  navLocation: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  navRight: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  navIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.danger,
     borderWidth: 1.5,
+    borderColor: colors.white,
+  },
+
+  // Search Bar
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  searchInputWrapper: {
+    height: 52,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
     borderColor: colors.border,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -377,188 +517,310 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: '100%',
-    paddingHorizontal: getResponsiveValue(12, 14, 16, 18),
-    fontSize: getResponsiveValue(14, 15, 16, 17),
+    fontSize: 15,
     color: colors.text,
     fontWeight: '500',
   },
+  filterButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  // Section Container Styles
+  // Promo Banner
+  promoBanner: {
+    marginHorizontal: 16,
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  promoContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  promoIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promoText: {
+    flex: 1,
+  },
+  promoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.white,
+    marginBottom: 2,
+  },
+  promoSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '500',
+  },
+  promoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.white,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  promoButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+
+  // Stats Container
+  statsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.white,
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+
+  // Section Container
   sectionContainer: {
-    marginBottom: getResponsiveValue(24, 28, 32, 40),
-    paddingTop: getResponsiveValue(8, 12, 16, 20),
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: getResponsiveValue(16, 24, 32, 48),
-    marginBottom: getResponsiveValue(16, 20, 24, 28),
-    maxWidth: 1400,
-    width: '100%',
-    alignSelf: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   sectionTitle: {
-    fontSize: getResponsiveValue(18, 20, 24, 28),
+    fontSize: 20,
     fontWeight: '800',
     color: colors.text,
     letterSpacing: -0.5,
   },
   seeAllLink: {
-    fontSize: getResponsiveValue(13, 14, 15, 16),
+    fontSize: 14,
     color: colors.primary,
     fontWeight: '700',
   },
 
-  // Categories Section Styles
+  // Categories
   categoriesScroll: {
     flexGrow: 0,
   },
   categoriesContent: {
-    paddingHorizontal: getResponsiveValue(16, 24, 32, 48),
-    gap: getResponsiveValue(12, 14, 16, 18),
+    paddingHorizontal: 16,
+    gap: 12,
   },
   categoryCard: {
     alignItems: 'center',
-    width: getResponsiveValue(80, 90, 100, 110),
-    paddingVertical: getResponsiveValue(8, 10, 12, 14),
-    borderRadius: getResponsiveValue(12, 14, 16, 18),
-    backgroundColor: 'transparent',
-    transition: 'all 0.2s ease',
+    width: 80,
   },
   categoryCardSelected: {
-    backgroundColor: colors.primaryLight,
+    transform: [{ scale: 1.05 }],
   },
   categoryIconContainer: {
-    width: getResponsiveValue(64, 72, 80, 88),
-    height: getResponsiveValue(64, 72, 80, 88),
-    borderRadius: getResponsiveValue(16, 18, 20, 22),
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: getResponsiveValue(8, 10, 12, 14),
+    marginBottom: 8,
+    borderWidth: 2,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
   categoryName: {
-    fontSize: getResponsiveValue(12, 13, 14, 15),
+    fontSize: 12,
     color: colors.text,
     fontWeight: '600',
     textAlign: 'center',
-    letterSpacing: -0.1,
-  },
-  categoryNameSelected: {
-    color: colors.primary,
-    fontWeight: '700',
   },
 
-  // Listings Grid Styles
+  // Listings Grid
   listingsGrid: {
-    paddingHorizontal: getResponsiveValue(16, 24, 32, 48),
-    maxWidth: 1400,
-    width: '100%',
-    alignSelf: 'center',
-    gap: getResponsiveValue(12, 14, 16, 20),
+    paddingHorizontal: 16,
+    gap: 16,
   },
   listingCardWrapper: {
-    paddingHorizontal: getResponsiveValue(0, 6, 8, 10),
-    marginBottom: getResponsiveValue(12, 14, 16, 20),
+    paddingHorizontal: 4,
+    marginBottom: 16,
   },
   listingCard: {
     backgroundColor: colors.white,
-    borderRadius: getResponsiveValue(14, 16, 18, 20),
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 5,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
     borderWidth: 1,
     borderColor: colors.border,
   },
 
-  // Listing Image Styles
+  // Listing Image
   imageContainer: {
     position: 'relative',
     width: '100%',
-    height: getResponsiveValue(180, 200, 220, 240),
-    backgroundColor: colors.border,
+    height: 200,
+    backgroundColor: colors.background,
   },
   productImage: {
     width: '100%',
     height: '100%',
   },
-  priceTag: {
-    position: 'absolute',
-    bottom: getResponsiveValue(10, 12, 14, 16),
-    right: getResponsiveValue(10, 12, 14, 16),
-    backgroundColor: colors.primary,
-    paddingHorizontal: getResponsiveValue(12, 14, 16, 18),
-    paddingVertical: getResponsiveValue(7, 8, 9, 10),
-    borderRadius: getResponsiveValue(10, 11, 12, 13),
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 4,
+  imagePlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  priceText: {
+  featuredBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.warning,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  featuredText: {
+    fontSize: 11,
+    fontWeight: '700',
     color: colors.white,
-    fontSize: getResponsiveValue(14, 15, 16, 17),
-    fontWeight: '800',
-    letterSpacing: -0.2,
   },
   favoriteButton: {
     position: 'absolute',
-    top: getResponsiveValue(10, 12, 14, 16),
-    right: getResponsiveValue(10, 12, 14, 16),
-    width: getResponsiveValue(38, 40, 42, 44),
-    height: getResponsiveValue(38, 40, 42, 44),
-    borderRadius: getResponsiveValue(19, 20, 21, 22),
-    backgroundColor: colors.accent,
+    top: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
   },
 
-  // Listing Details Styles
+  // Listing Details
   listingDetails: {
-    padding: getResponsiveValue(14, 16, 18, 20),
+    padding: 16,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  priceText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  conditionBadge: {
+    backgroundColor: colors.accentLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  conditionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
   },
   listingTitle: {
-    fontSize: getResponsiveValue(15, 16, 17, 18),
+    fontSize: 16,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: getResponsiveValue(8, 10, 12, 14),
-    lineHeight: getResponsiveValue(20, 22, 24, 26),
-    letterSpacing: -0.2,
+    marginBottom: 8,
+    lineHeight: 22,
   },
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: getResponsiveValue(10, 12, 14, 16),
-    gap: 5,
+    gap: 4,
+    marginBottom: 12,
   },
   locationText: {
-    fontSize: getResponsiveValue(12, 13, 14, 15),
+    fontSize: 13,
     color: colors.textSecondary,
     fontWeight: '500',
     flex: 1,
-    letterSpacing: -0.1,
   },
   listingFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: getResponsiveValue(8, 10, 12, 14),
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  sellerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sellerAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.border,
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -566,32 +828,32 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   ratingText: {
-    fontSize: getResponsiveValue(12, 13, 14, 15),
+    fontSize: 13,
     color: colors.text,
     fontWeight: '700',
-    letterSpacing: -0.1,
   },
 
   // Empty State
   emptyState: {
-    paddingVertical: getResponsiveValue(40, 50, 60, 80),
+    paddingVertical: 60,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyStateText: {
-    fontSize: getResponsiveValue(16, 18, 20, 22),
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: getResponsiveValue(6, 8, 10, 12),
+    marginTop: 16,
+    marginBottom: 8,
   },
   emptyStateSubtext: {
-    fontSize: getResponsiveValue(13, 14, 15, 16),
+    fontSize: 14,
     color: colors.textSecondary,
     fontWeight: '500',
   },
 
   // Bottom Spacing
   bottomSpacing: {
-    height: getResponsiveValue(24, 28, 32, 40),
+    height: 40,
   },
 });
