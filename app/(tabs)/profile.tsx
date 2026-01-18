@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/OTPAuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Listing, User } from '@/lib/types';
+import * as ImagePicker from 'expo-image-picker';
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_SIZE = (width - 48) / 3;
@@ -160,6 +161,8 @@ const EditProfileModal: React.FC<{
   const [bio, setBio] = useState(user.bio || '');
   const [location, setLocation] = useState(user.location || '');
   const [email, setEmail] = useState(user.email || '');
+  const [avatar, setAvatar] = useState(user.avatar || null);
+  const [uploading, setUploading] = useState(false);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -168,20 +171,78 @@ const EditProfileModal: React.FC<{
       setBio(user.bio || '');
       setLocation(user.location || '');
       setEmail(user.email || '');
+      setAvatar(user.avatar || null);
     }
   }, [visible, user]);
+
+  // Pick image and upload to Supabase
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets && result.assets[0].uri) {
+      setUploading(true);
+      try {
+        const uri = result.assets[0].uri;
+        // Get extension from mime type or uri
+        let ext = 'jpg';
+        if (result.assets[0].type && result.assets[0].type.startsWith('image/')) {
+          ext = result.assets[0].type.split('/')[1];
+        } else if (uri.lastIndexOf('.') !== -1) {
+          ext = uri.substring(uri.lastIndexOf('.') + 1).split('?')[0];
+        }
+        // Only allow safe extensions
+        if (!['jpg','jpeg','png','webp'].includes(ext.toLowerCase())) ext = 'jpg';
+        const fileName = `${user.id}.${ext}`;
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        // Debug: log blob info
+        console.log('[Avatar Upload] Blob type:', blob.type, 'size:', blob.size);
+        if (!blob || !blob.size || !blob.type.startsWith('image/')) {
+          Alert.alert('Upload failed', 'Selected file is not a valid image.');
+          setUploading(false);
+          return;
+        }
+        // Upload to Supabase Storage (avatars bucket)
+        const { error } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, blob, { upsert: true, contentType: blob.type });
+        if (error) {
+          console.error('[Avatar Upload] Supabase error:', error.message, error);
+          Alert.alert('Upload failed', error.message || 'Could not upload image.');
+          setUploading(false);
+          return;
+        }
+        // Get public URL
+        const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        if (publicUrlData?.publicUrl) {
+          setAvatar(publicUrlData.publicUrl);
+        } else {
+          throw new Error('Could not get public URL');
+        }
+      } catch (e) {
+        console.error('[Avatar Upload] Exception:', e);
+        Alert.alert('Upload failed', 'Could not upload image.');
+      } finally {
+        setUploading(false);
+      }
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'Name is required');
       return;
     }
-
     await onSave({
       name: name.trim(),
       bio: bio.trim() || null,
       location: location.trim() || null,
       email: email.trim() || null,
+      avatar: avatar || null,
     });
   };
 
@@ -194,11 +255,11 @@ const EditProfileModal: React.FC<{
         >
           {/* Modal Header */}
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton} disabled={isSaving}>
+            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton} disabled={isSaving || uploading}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Edit Profile</Text>
-            <TouchableOpacity onPress={handleSave} style={styles.modalSaveButton} disabled={isSaving}>
+            <TouchableOpacity onPress={handleSave} style={styles.modalSaveButton} disabled={isSaving || uploading}>
               {isSaving ? (
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
@@ -208,6 +269,24 @@ const EditProfileModal: React.FC<{
           </View>
 
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {/* Avatar Picker */}
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <TouchableOpacity onPress={pickImage} disabled={uploading} style={{ alignItems: 'center' }}>
+                <Image
+                  source={avatar ? { uri: avatar } : DEFAULT_AVATAR}
+                  style={{ width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: colors.primaryLight }}
+                />
+                <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: colors.primary, borderRadius: 12, padding: 2 }}>
+                  {uploading ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <Ionicons name="camera" size={18} color={colors.white} />
+                  )}
+                </View>
+              </TouchableOpacity>
+              <Text style={{ color: colors.textTertiary, fontSize: 13, marginTop: 6 }}>Tap to change photo</Text>
+            </View>
+
             {/* Form Fields */}
             <View style={styles.formSection}>
               <View style={styles.inputGroup}>
