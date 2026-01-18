@@ -10,7 +10,7 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 
@@ -85,8 +85,21 @@ const MOCK_PRODUCTS: Product[] = [
   },
 ];
 
+// Seller ID mapping for chat navigation
+const SELLER_CHAT_IDS: Record<string, string> = {
+  'Alex Johnson': 's1',
+  'Maya Lee': 's2',
+};
+
+// Seller ID mapping for profile navigation
+const SELLER_PROFILE_IDS: Record<string, string> = {
+  'Alex Johnson': 'alexjohnson',
+  'Maya Lee': 'mayalee',
+};
+
 export default function ProductDetails() {
   const params = useLocalSearchParams();
+  const router = useRouter();
   const id = (params as any).id ?? 'l1';
 
   const product = MOCK_PRODUCTS.find((p) => p.id === id) ?? MOCK_PRODUCTS[0];
@@ -268,7 +281,10 @@ export default function ProductDetails() {
               
               <Pressable
                 style={styles.viewProfileButton}
-                onPress={() => Alert.alert('Seller profile', 'Profile UI')}
+                onPress={() => {
+                  const profileId = SELLER_PROFILE_IDS[product.seller.name] || 'default';
+                  router.push(`/profile/${profileId}`);
+                }}
               >
                 <Text style={styles.viewProfileText}>View</Text>
                 <Ionicons name="chevron-forward" size={16} color={ACCENT} />
@@ -297,7 +313,10 @@ export default function ProductDetails() {
       <View style={styles.actionBar}>
         <Pressable
           style={[styles.actionButton, styles.chatButton]}
-          onPress={() => Alert.alert('Chat', 'Chat with seller')}
+          onPress={() => {
+            const sellerId = SELLER_CHAT_IDS[product.seller.name] || 'default';
+            router.push(`/chat/${sellerId}`);
+          }}
         >
           <Ionicons name="chatbubble-outline" size={20} color={ACCENT} />
           <Text style={styles.chatText}>Message</Text>
@@ -305,10 +324,13 @@ export default function ProductDetails() {
         
         <Pressable
           style={[styles.actionButton, styles.callButton]}
-          onPress={() => Alert.alert('Call', 'Calling seller')}
+          onPress={() => {
+            const profileId = SELLER_PROFILE_IDS[product.seller.name] || 'default';
+            router.push(`/profile/${profileId}`);
+          }}
         >
-          <Ionicons name="call" size={20} color="#FFF" />
-          <Text style={styles.callText}>Call Now</Text>
+          <Ionicons name="person" size={20} color="#FFF" />
+          <Text style={styles.callText}>View Profile</Text>
         </Pressable>
       </View>
     </SafeAreaView>

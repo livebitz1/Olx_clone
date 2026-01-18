@@ -4,6 +4,7 @@ import { StyleSheet, View, Platform } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
   return (
@@ -13,6 +14,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: '#94a3b8',
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarShowLabel: false,
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopWidth: 1,
@@ -51,13 +53,41 @@ export default function TabLayout() {
         }}
       />
 
+      <Tabs.Screen
+        name="chats"
+        options={{
+          title: 'Chats',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[
+              styles.iconContainer,
+              focused && styles.iconContainerActive
+            ]}>
+              <Ionicons name={focused ? "chatbubbles" : "chatbubbles-outline"} size={24} color={color} />
+            </View>
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[
+              styles.iconContainer,
+              focused && styles.iconContainerActive
+            ]}>
+              <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
+            </View>
+          ),
+        }}
+      />
+
       {/* Keep listing route available for navigation but hide it from the tab bar */}
       <Tabs.Screen
         name="listing/[id]"
         options={{
-          // hide tab icon by rendering nothing for tabBarButton
           tabBarButton: () => null,
-          // keep header behavior as needed (will be controlled in the screen)
           headerShown: false,
         }}
       />
