@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/OTPAuthContext';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -48,7 +49,7 @@ const OTP_LENGTH = 6; // Firebase uses 6-digit OTP
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { sendOtp, verifyOtp, resendOtp, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { sendOtp, verifyOtp, resendOtp, isAuthenticated, isLoading: authLoading, setRecaptchaVerifier } = useAuth();
   
   // Phone input state
   const [selectedCountry, setSelectedCountry] = useState<Country>(COUNTRIES[0]);
@@ -57,11 +58,15 @@ export default function LoginScreen() {
   const [phoneError, setPhoneError] = useState('');
   const [isSendingOTP, setIsSendingOTP] = useState(false);
   
+  // reCAPTCHA verifier ref (for mobile)
+  const recaptchaVerifierRef = useRef<any>(null);
+  
   // OTP state
   const [showOTPScreen, setShowOTPScreen] = useState(false);
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [otpError, setOtpError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [showSuccessLoader, setShowSuccessLoader] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   
   // Refs for OTP inputs
@@ -70,6 +75,21 @@ export default function LoginScreen() {
   // Animation
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const loaderProgressAnim = useRef(new Animated.Value(0)).current;
+
+  // Firebase config for reCAPTCHA
+  const firebaseConfig = Platform.OS !== 'web' ? {
+    apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
+    authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+    projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || '',
+  } : undefined;
+
+  // Set reCAPTCHA verifier when component mounts (for mobile)
+  useEffect(() => {
+    if (Platform.OS !== 'web' && recaptchaVerifierRef.current && setRecaptchaVerifier) {
+      setRecaptchaVerifier(recaptchaVerifierRef.current);
+    }
+  }, [setRecaptchaVerifier]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -197,6 +217,7 @@ export default function LoginScreen() {
     }
 
     setIsVerifying(true);
+    setOtpError('');
     const cleanNumber = getCleanPhoneNumber();
     const enteredOTP = otp.join('');
     
@@ -205,7 +226,28 @@ export default function LoginScreen() {
     setIsVerifying(false);
     
     if (result.success) {
-      router.replace('/(tabs)');
+      // Show professional success loader
+      setShowSuccessLoader(true);
+      
+      // Animate progress bar
+      loaderProgressAnim.setValue(0);
+      Animated.timing(loaderProgressAnim, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: false,
+      }).start();
+      
+      // Wait for user data to be saved to Supabase and then navigate
+      setTimeout(() => {
+        // Smooth navigation with fade animation
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start(() => {
+          router.replace('/(tabs)');
+        });
+      }, 2000); // Show success animation for 2 seconds
     } else {
       setOtpError(result.error || 'Invalid OTP. Please try again.');
       setOtp(Array(OTP_LENGTH).fill(''));
@@ -456,8 +498,95 @@ export default function LoginScreen() {
     </Animated.View>
   );
 
+  // Success Loader Component
+  const renderSuccessLoader = () => (
+    <View style={styles.loaderOverlay}>
+      <Animated.View 
+        style={[
+          styles.loaderContainer,
+          {
+            opacity: fadeAnim,
+            transform: [
+              {
+                scale: fadeAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.8, 1],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={['#10b981', '#059669']}
+          style={styles.loaderIconContainer}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Animated.View
+            style={[
+              styles.checkmarkContainer,
+              {
+                transform: [
+                  {
+                    scale: fadeAnim.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0, 1.2, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Ionicons name="checkmark" size={48} color="#fff" />
+          </Animated.View>
+        </LinearGradient>
+        <Text style={styles.loaderTitle}>Authentication Successful!</Text>
+        <Text style={styles.loaderSubtitle}>Setting up your account...</Text>
+        <View style={styles.loaderProgressContainer}>
+          <Animated.View
+            style={[
+              styles.loaderProgressFill,
+              {
+                width: loaderProgressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '100%'],
+                }),
+              },
+            ]}
+          />
+        </View>
+      </Animated.View>
+    </View>
+  );
+
+  // Animate loader on mount
+  useEffect(() => {
+    if (showSuccessLoader) {
+      fadeAnim.setValue(0);
+      Animated.spring(fadeAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }).start();
+    }
+  }, [showSuccessLoader]);
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* Firebase reCAPTCHA Modal (for mobile platforms) */}
+      {Platform.OS !== 'web' && firebaseConfig && (
+        <FirebaseRecaptchaVerifierModal
+          ref={recaptchaVerifierRef}
+          firebaseConfig={firebaseConfig as any}
+          attemptInvisibleVerification
+        />
+      )}
+      
+      {/* Success Loader Overlay */}
+      {showSuccessLoader && renderSuccessLoader()}
+      
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -914,5 +1043,65 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontWeight: '500',
     marginRight: 8,
+  },
+  
+  // Success Loader Styles
+  loaderOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    zIndex: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loaderContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  loaderIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 32,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  checkmarkContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loaderTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loaderSubtitle: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  loaderProgressContainer: {
+    width: 200,
+    height: 4,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  loaderProgressFill: {
+    height: '100%',
+    backgroundColor: '#10b981',
+    borderRadius: 2,
   },
 });

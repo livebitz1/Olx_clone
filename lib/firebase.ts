@@ -15,7 +15,9 @@
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
-  getAuth, 
+  getAuth,
+  initializeAuth,
+  getReactNativePersistence,
   signInWithPhoneNumber, 
   RecaptchaVerifier,
   PhoneAuthProvider,
@@ -28,6 +30,7 @@ import {
   User as FirebaseUser
 } from 'firebase/auth';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Firebase Web Config - Only 4 values needed for Phone Auth
 // Get this from Firebase Console > Project Settings > Your apps > Web app
@@ -51,7 +54,23 @@ export const initializeFirebase = (): { app: FirebaseApp; auth: Auth } => {
     console.log('[Firebase] Using existing app');
   }
   
-  authInstance = getAuth(app);
+  // Use initializeAuth with AsyncStorage persistence for React Native
+  // This ensures auth state persists between app sessions
+  try {
+    authInstance = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+    console.log('[Firebase] Auth initialized with AsyncStorage persistence');
+  } catch (error: any) {
+    // If auth is already initialized, get the existing instance
+    if (error.code === 'auth/already-initialized') {
+      authInstance = getAuth(app);
+      console.log('[Firebase] Auth already initialized, using existing instance');
+    } else {
+      throw error;
+    }
+  }
+  
   return { app, auth: authInstance };
 };
 

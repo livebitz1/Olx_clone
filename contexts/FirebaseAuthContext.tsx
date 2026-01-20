@@ -129,13 +129,14 @@ const saveSessionToDatabase = async (sessionData: {
 };
 
 interface AuthContextType extends AuthState {
-  sendOtp: (phone: string) => Promise<{ success: boolean; error?: string }>;
+  sendOtp: (phone: string, recaptchaVerifier?: any) => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (phone: string, otp: string) => Promise<{ success: boolean; error?: string }>;
   resendOtp: (phone: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
   otpSent: boolean;
   setOtpSent: (value: boolean) => void;
+  setRecaptchaVerifier: (verifier: any) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -149,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Store the confirmation result for OTP verification
   const confirmationRef = useRef<ConfirmationResult | null>(null);
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+  const mobileRecaptchaVerifierRef = useRef<any>(null);
   const authRef = useRef<Auth | null>(null);
 
   // =============================================================================
@@ -261,39 +263,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // =============================================================================
-  // Setup reCAPTCHA Verifier (for web)
+  // Setup reCAPTCHA Verifier (for web and mobile)
   // =============================================================================
   const setupRecaptcha = useCallback(async () => {
     if (!authRef.current) return null;
 
-    // Only needed for web platform
-    if (Platform.OS === 'web') {
-      try {
-        // Clear existing verifier
+    try {
+      if (Platform.OS === 'web') {
+        // Web platform: Use standard RecaptchaVerifier
         if (recaptchaVerifierRef.current) {
           recaptchaVerifierRef.current.clear();
         }
 
-        // Create invisible reCAPTCHA
         recaptchaVerifierRef.current = new RecaptchaVerifier(authRef.current, 'recaptcha-container', {
           size: 'invisible',
           callback: () => {
-            console.log('[Firebase Auth] reCAPTCHA verified');
+            console.log('[Firebase Auth] reCAPTCHA verified (web)');
           },
           'expired-callback': () => {
-            console.log('[Firebase Auth] reCAPTCHA expired');
+            console.log('[Firebase Auth] reCAPTCHA expired (web)');
           },
         });
 
         await recaptchaVerifierRef.current.render();
         return recaptchaVerifierRef.current;
-      } catch (error) {
-        console.error('[Firebase Auth] reCAPTCHA setup error:', error);
-        return null;
-      }
-    }
+      } else {
+        // Mobile platform: Use FirebaseRecaptchaVerifierModal from expo-firebase-recaptcha
+        const { FirebaseRecaptchaVerifierModal } = await import('expo-firebase-recaptcha');
+        const firebaseConfig = {
+          apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
+          authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+          projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || '',
+        };
 
-    return null;
+        // Create a verifier using FirebaseRecaptchaVerifierModal
+        // Note: The modal component should be rendered in the UI
+        // For now, we'll create a verifier that will be used when the modal is shown
+        const verifier = new FirebaseRecaptchaVerifierModal({
+          firebaseConfig: firebaseConfig as any,
+          attemptInvisibleVerification: true,
+        }) as any;
+
+        return verifier;
+      }
+    } catch (error) {
+      console.error('[Firebase Auth] reCAPTCHA setup error:', error);
+      return null;
+    }
   }, []);
 
   // =============================================================================
@@ -323,32 +339,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const formattedPhone = formatPhoneNumber(phone, '+91');
       console.log('[Firebase Auth] Formatted phone:', formattedPhone);
 
-      // Setup reCAPTCHA for web
-      let appVerifier = recaptchaVerifierRef.current;
-      if (Platform.OS === 'web' && !appVerifier) {
-        appVerifier = await setupRecaptcha();
-      }
-
-      // Send OTP via Firebase
-      // For mobile in Expo, we need to handle this differently
-      // Firebase Phone Auth with Expo requires expo-firebase-recaptcha
-      if (Platform.OS !== 'web') {
-        // For mobile platforms, we'll use a different approach
-        // This requires additional setup with expo-firebase-recaptcha
-        console.log('[Firebase Auth] Mobile platform detected');
-        
-        // For now, use the standard signInWithPhoneNumber
-        // This will work in development but needs proper reCAPTCHA in production
-        const confirmation = await signInWithPhoneNumber(authRef.current, formattedPhone);
-        confirmationRef.current = confirmation;
-      } else {
-        // Web platform
+      // Setup reCAPTCHA verifier for all platforms
+      let appVerifier: any = null;
+      
+      if (Platform.OS === 'web') {
+        // Web: Use standard RecaptchaVerifier
+        appVerifier = recaptchaVerifierRef.current;
+        if (!appVerifier) {
+          appVerifier = await setupRecaptcha();
+        }
         if (!appVerifier) {
           return { success: false, error: 'reCAPTCHA verification failed. Please refresh and try again.' };
         }
-        const confirmation = await signInWithPhoneNumber(authRef.current, formattedPhone, appVerifier);
-        confirmationRef.current = confirmation;
+      } else {
+        // Mobile: Use the verifier passed from the UI component (FirebaseRecaptchaVerifierModal)
+        // or use mobileRecaptchaVerifierRef if set
+        appVerifier = mobileRecaptchaVerifierRef.current;
+        
+        if (!appVerifier) {
+          // If no verifier is set, return error asking to retry
+          // The login screen should render FirebaseRecaptchaVerifierModal and set it
+          return { 
+            success: false, 
+            error: 'reCAPTCHA not ready. Please wait a moment and try again.' 
+          };
+        }
       }
+
+      // Send OTP with verifier (required for all platforms)
+      const confirmation = await signInWithPhoneNumber(authRef.current, formattedPhone, appVerifier);
+      confirmationRef.current = confirmation;
 
       console.log('[Firebase Auth] ✓ OTP sent successfully');
       console.log('[Firebase Auth] ══════════════════════════════════════');
@@ -524,6 +544,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   // =============================================================================
+  // Set reCAPTCHA Verifier (for mobile)
+  // =============================================================================
+  const setRecaptchaVerifier = useCallback((verifier: any) => {
+    if (Platform.OS !== 'web') {
+      mobileRecaptchaVerifierRef.current = verifier;
+      console.log('[Firebase Auth] Mobile reCAPTCHA verifier set');
+    }
+  }, []);
+
+  // =============================================================================
   // Context Value
   // =============================================================================
   const value: AuthContextType = {
@@ -538,6 +568,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resendOtp,
     signOut,
     updateUser: updateUserProfile,
+    setRecaptchaVerifier,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
