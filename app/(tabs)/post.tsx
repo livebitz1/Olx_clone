@@ -93,7 +93,7 @@ export default function PostAdScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType.Images, // keep as fallback for now
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -277,7 +277,8 @@ export default function PostAdScreen() {
                 <Text style={styles.errorText}>{errors.title}</Text>
               ) : (
                 <Text style={styles.helperText}>Be specific (e.g., "iPhone 14 Pro 256GB")</Text>
-              )}
+              )
+              }
               <Text style={styles.charCount}>{formData.title.length}/70</Text>
             </View>
           </View>

@@ -22,6 +22,7 @@ import { useAuth } from '@/contexts/OTPAuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Listing, User } from '@/lib/types';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_SIZE = (width - 48) / 3;
@@ -178,7 +179,7 @@ const EditProfileModal: React.FC<{
   // Pick image and upload to Supabase
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, // fallback for current Expo version
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
@@ -197,19 +198,26 @@ const EditProfileModal: React.FC<{
         // Only allow safe extensions
         if (!['jpg','jpeg','png','webp'].includes(ext.toLowerCase())) ext = 'jpg';
         const fileName = `${user.id}.${ext}`;
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        // Debug: log blob info
-        console.log('[Avatar Upload] Blob type:', blob.type, 'size:', blob.size);
-        if (!blob || !blob.size || !blob.type.startsWith('image/')) {
-          Alert.alert('Upload failed', 'Selected file is not a valid image.');
-          setUploading(false);
-          return;
+        // Delete old avatar if exists and is not default
+        if (user.avatar && !user.avatar.includes('icon.png')) {
+          const oldFileName = user.avatar.split('/').pop();
+          if (oldFileName) {
+            await supabase.storage.from('avatars').remove([oldFileName]);
+          }
         }
+        // Read file as base64
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: 'base64',
+        });
+        // Convert base64 → Uint8Array
+        const binary = Uint8Array.from(
+          atob(base64),
+          (char) => char.charCodeAt(0)
+        );
         // Upload to Supabase Storage (avatars bucket)
         const { error } = await supabase.storage
           .from('avatars')
-          .upload(fileName, blob, { upsert: true, contentType: blob.type });
+          .upload(fileName, binary, { upsert: true, contentType: `image/${ext}` });
         if (error) {
           console.error('[Avatar Upload] Supabase error:', error.message, error);
           Alert.alert('Upload failed', error.message || 'Could not upload image.');
@@ -219,7 +227,28 @@ const EditProfileModal: React.FC<{
         // Get public URL
         const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
         if (publicUrlData?.publicUrl) {
-          setAvatar(publicUrlData.publicUrl);
+          // Update user's avatar field in Supabase
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({ avatar: publicUrlData.publicUrl })
+            .eq('id', user.id);
+          if (updateError) {
+            console.error('[Avatar Update] Supabase error:', updateError.message, updateError);
+          }
+          // Refetch user profile from Supabase after update
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('avatar')
+            .eq('id', user.id)
+            .single();
+          let avatarUrl = publicUrlData.publicUrl;
+          if (userError) {
+            console.error('[Avatar Fetch] Supabase error:', userError.message, userError);
+          } else if (userData?.avatar) {
+            avatarUrl = userData.avatar;
+          }
+          // Add cache-busting query string
+          setAvatar(`${avatarUrl}?t=${Date.now()}`);
         } else {
           throw new Error('Could not get public URL');
         }
