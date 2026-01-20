@@ -626,15 +626,19 @@ export default function ProfileScreen() {
     try {
       setIsLoadingListings(true);
       const { data, error } = await supabase
-        .from('listings')
+        .from('posts')
         .select('*')
         .eq('userId', user.id)
-        .order('createdAt', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('[Profile] Error fetching listings:', error.message);
       } else {
-        setListings(data || []);
+        // Map created_at to createdAt for frontend usage
+        setListings((data || []).map((item) => ({
+          ...item,
+          createdAt: item.created_at,
+        })));
       }
     } catch (error) {
       console.error('[Profile] Exception fetching listings:', error);
@@ -714,7 +718,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               const { error } = await supabase
-                .from('listings')
+                .from('posts')
                 .delete()
                 .eq('id', listingId);
 

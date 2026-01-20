@@ -15,6 +15,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/OTPAuthContext';
 
 const CATEGORIES = [
   { id: '1', name: 'Vehicles', icon: 'car-outline' },
@@ -54,6 +57,8 @@ type FormErrors = {
 };
 
 export default function PostAdScreen() {
+  const { user } = useAuth();
+
   const [formData, setFormData] = useState<FormData>({
     title: '',
     price: '',
@@ -93,7 +98,7 @@ export default function PostAdScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaType.Images, // keep as fallback for now
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, // fallback for current Expo version
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -146,19 +151,69 @@ export default function PostAdScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const uploadImagesToSupabase = async (imageUris: string[], userId: string) => {
+    const uploadedUrls: string[] = [];
+    for (let i = 0; i < imageUris.length; i++) {
+      const uri = imageUris[i];
+      const ext = uri.split('.').pop()?.split('?')[0] || 'jpg';
+      const fileName = `${userId}_${Date.now()}_${i}.${ext}`;
+      // Read file as base64
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+      const binary = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+      const { data, error } = await supabase.storage
+        .from('post-images')
+        .upload(fileName, binary, { upsert: true, contentType: `image/${ext}` });
+      if (error) {
+        console.error('[Post Image Upload] Supabase error:', error.message, error);
+        continue;
+      }
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage.from('post-images').getPublicUrl(fileName);
+      if (publicUrlData?.publicUrl) {
+        uploadedUrls.push(publicUrlData.publicUrl);
+      }
+    }
+    return uploadedUrls;
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       Alert.alert('Missing Information', 'Please fill in all required fields.');
       return;
     }
-
     setIsSubmitting(true);
-
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
+    // Upload images to Supabase Storage
+    const userId = user?.id;
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated. Please log in again.');
+      setIsSubmitting(false);
+      return;
+    }
+    const uploadedImageUrls = await uploadImagesToSupabase(formData.images, userId);
+    if (uploadedImageUrls.length === 0) {
+      Alert.alert('Error', 'Failed to upload images. Please try again.');
+      setIsSubmitting(false);
+      return;
+    }
+    // Save post to Supabase
+    const { error } = await supabase.from('posts').insert({
+      title: formData.title,
+      price: formData.price,
+      category: formData.category,
+      condition: formData.condition,
+      location: formData.location,
+      description: formData.description,
+      images: uploadedImageUrls, // array of image URLs
+      userId: userId, // <-- Now set from auth context
+      created_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error('Supabase insert error:', error);
+      Alert.alert('Error', error.message || 'Failed to save post. Please try again.');
+      setIsSubmitting(false);
+      return;
+    }
     setIsSubmitting(false);
-
     Alert.alert(
       'Ad Posted Successfully! 🎉',
       'Your listing is now live and visible to buyers.',

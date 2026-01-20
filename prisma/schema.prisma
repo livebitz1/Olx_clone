@@ -27,7 +27,7 @@ model User {
 
   // Relations
   sessions    Session[]
-  listings    Listing[]
+  posts       Posts[]
 
   @@map("users")
 }
@@ -35,7 +35,7 @@ model User {
 // ===========================================
 // LISTING - User's products for sale
 // ===========================================
-model Listing {
+model Posts {
   id          String    @id @default(uuid())
   userId      String
   title       String
@@ -44,18 +44,19 @@ model Listing {
   images      String[]
   category    String?
   location    String?
+  condition   String?
   isSold      Boolean   @default(false)
   views       Int       @default(0)
   likes       Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
 
   // Relations
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isSold])
-  @@map("listings")
+  @@map("posts")
 }
 
 // ===========================================

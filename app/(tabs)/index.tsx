@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { PRODUCTS, Product } from '@/lib/products';
+import { supabase } from '@/lib/supabase';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 
 // Get screen dimensions with responsive breakpoints
@@ -556,27 +556,27 @@ const CategoryCard: React.FC<{
 };
 
 // Featured Listing Card Component
-const ListingCard: React.FC<{ listing: Product; onPress: () => void }> = ({ listing, onPress }) => {
+const ListingCard: React.FC<{ listing: any; onPress: () => void }> = ({ listing, onPress }) => {
   const [isFavorited, setIsFavorited] = useState(false);
+
+  // Determine image source: if images[0] is a string, treat as remote URL
+  const imageSource = listing.images && listing.images[0]
+    ? (typeof listing.images[0] === 'string'
+        ? { uri: listing.images[0] }
+        : listing.images[0])
+    : null;
 
   return (
     <TouchableOpacity style={styles.listingCard} onPress={onPress} activeOpacity={0.9}>
       {/* Product Image Container */}
       <View style={styles.imageContainer}>
-        {listing.images && listing.images[0] ? (
-          <Image source={listing.images[0]} style={styles.productImage} resizeMode="cover" />
+        {imageSource ? (
+          <Image source={imageSource} style={styles.productImage} resizeMode="cover" />
         ) : (
           <View style={[styles.productImage, styles.imagePlaceholder]}>
             <Ionicons name="image-outline" size={48} color={colors.textTertiary} />
           </View>
         )}
-        
-        {/* Featured Badge */}
-        <View style={styles.featuredBadge}>
-          <Ionicons name="star" size={12} color="#FFF" />
-          <Text style={styles.featuredText}>Featured</Text>
-        </View>
-
         {/* Favorite Button */}
         <TouchableOpacity 
           style={styles.favoriteButton} 
@@ -590,7 +590,6 @@ const ListingCard: React.FC<{ listing: Product; onPress: () => void }> = ({ list
           />
         </TouchableOpacity>
       </View>
-
       {/* Product Details */}
       <View style={styles.listingDetails}>
         <View style={styles.priceRow}>
@@ -614,14 +613,21 @@ const ListingCard: React.FC<{ listing: Product; onPress: () => void }> = ({ list
         {/* Footer with Seller Info */}
         <View style={styles.listingFooter}>
           <View style={styles.sellerInfo}>
-            <Image 
-              source={require('../../assets/images/partial-react-logo.png')} 
-              style={styles.sellerAvatar}
-            />
-            <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={12} color={colors.warning} />
-              <Text style={styles.ratingText}>4.8</Text>
-            </View>
+            {listing.user && listing.user.avatar ? (
+              <Image
+                source={{ uri: listing.user.avatar }}
+                style={styles.sellerAvatar}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.sellerAvatar, styles.imagePlaceholder]}>
+                <Ionicons name="person-circle-outline" size={32} color={colors.textTertiary} />
+              </View>
+            )}
+            {/* Show seller name instead of rating */}
+            <Text style={styles.sellerName} numberOfLines={1}>
+              {listing.user && listing.user.name ? listing.user.name : 'Seller'}
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.primary} />
         </View>
@@ -690,12 +696,37 @@ export default function HomeScreen() {
     condition: 'any',
     location: 'any',
   });
+  const [listings, setListings] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchListings = async () => {
+      setIsLoading(true);
+      // Fetch posts and join with user (seller) info
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*, user:users(id, name, avatar)')
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('[Home] Error fetching posts:', error.message);
+        setListings([]);
+      } else {
+        setListings((data || []).map((item) => ({
+          ...item,
+          createdAt: item.created_at,
+          user: item.user,
+        })));
+      }
+      setIsLoading(false);
+    };
+    fetchListings();
+  }, []);
 
   const handleCategoryPress = (categoryId: string) => {
     setSelectedCategory(selectedCategory === categoryId ? null : categoryId);
   };
 
-  const handleListingPress = (listing: Product) => {
+  const handleListingPress = (listing: any) => {
     router.push(`/listing/${listing.id}`);
   };
 
@@ -711,9 +742,11 @@ export default function HomeScreen() {
     filters.condition !== 'any' ||
     filters.location !== 'any';
 
-  // Parse price from string like "$7,500" to number
-  const parsePrice = (priceStr: string): number => {
-    return parseFloat(priceStr.replace(/[^0-9.]/g, '')) || 0;
+  // Parse price from string like "$7,500" to number, or handle number/undefined
+  const parsePrice = (priceVal: any): number => {
+    if (typeof priceVal === 'number') return priceVal;
+    if (typeof priceVal === 'string') return parseFloat(priceVal.replace(/[^0-9.]/g, '')) || 0;
+    return 0;
   };
 
   // Get price range bounds
@@ -729,7 +762,7 @@ export default function HomeScreen() {
   };
 
   // Enhanced filtering with all filter options
-  const filtered = PRODUCTS.filter((p) => {
+  const filtered = listings.filter((p) => {
     const matchesSearch =
       searchQuery.trim() === '' ||
       p.title.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
@@ -860,7 +893,7 @@ export default function HomeScreen() {
               flexWrap: numColumns > 1 ? 'wrap' : 'nowrap'
             }
           ]}>
-            {filtered.map((listing) => (
+            {listings.map((listing) => (
               <View 
                 key={listing.id} 
                 style={[
@@ -874,9 +907,10 @@ export default function HomeScreen() {
                 />
               </View>
             ))}
+
           </View>
 
-          {filtered.length === 0 && (
+          {listings.length === 0 && !isLoading && (
             <View style={styles.emptyState}>
               <Ionicons name="search-outline" size={64} color={colors.textTertiary} />
               <Text style={styles.emptyStateText}>No listings found</Text>
@@ -1212,23 +1246,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  featuredBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.warning,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  featuredText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.white,
-  },
   favoriteButton: {
     position: 'absolute',
     top: 12,
@@ -1306,15 +1323,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  ratingText: {
+  sellerName: {
     fontSize: 13,
     color: colors.text,
-    fontWeight: '700',
+    fontWeight: '500',
   },
 
   // Empty State
