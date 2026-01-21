@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -75,6 +75,23 @@ export default function PostAdScreen() {
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  // Fetch the current user's record from the users table (by Firebase UID)
+  const [currentUserDbId, setCurrentUserDbId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCurrentUserDbId = async () => {
+      if (!user?.id) return;
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+      if (data && data.id) {
+        setCurrentUserDbId(data.id);
+      }
+    };
+    fetchCurrentUserDbId();
+  }, [user]);
 
   const updateField = (field: keyof FormData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -183,7 +200,7 @@ export default function PostAdScreen() {
     }
     setIsSubmitting(true);
     // Upload images to Supabase Storage
-    const user_id = user?.id;
+    const user_id = currentUserDbId;
     if (!user_id) {
       Alert.alert('Error', 'User not authenticated. Please log in again.');
       setIsSubmitting(false);
@@ -204,7 +221,7 @@ export default function PostAdScreen() {
       location: formData.location,
       description: formData.description,
       images: uploadedImageUrls, // array of image URLs
-      user_id: user_id, // <-- Now set from auth context
+      user_id: user_id, // <-- Now set from users table
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });

@@ -14,6 +14,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { getAuth } from 'firebase/auth';
 
 const { width } = Dimensions.get('window');
 const IMAGE_HEIGHT = 360;
@@ -24,6 +26,7 @@ export default function ProductDetails() {
   const id = (params as any).id;
 
   const navigation: any = useNavigation();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (navigation && typeof navigation.setOptions === 'function') {
@@ -61,6 +64,36 @@ export default function ProductDetails() {
     setActiveIndex(index);
   };
 
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && session.user) {
+        setSessionUserId(session.user.id);
+        console.log('Direct Supabase user id:', session.user.id);
+      } else {
+        console.log('No Supabase session found.');
+      }
+    });
+  }, []);
+
+  // Fetch the current user's record from the users table (by Firebase UID)
+  const [currentUserDbId, setCurrentUserDbId] = useState<string | null>(null);
+  useEffect(() => {
+    const fetchCurrentUserDbId = async () => {
+      const firebaseUserId = getAuth().currentUser?.uid;
+      if (!firebaseUserId) return;
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', firebaseUserId)
+        .single();
+      if (data && data.id) {
+        setCurrentUserDbId(data.id);
+      }
+    };
+    fetchCurrentUserDbId();
+  }, []);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -76,9 +109,52 @@ export default function ProductDetails() {
     );
   }
 
+  // Debug logs for ownership (after product is loaded)
+  console.log('Auth user:', user);
+  console.log('Auth user id:', user?.id);
+  console.log('Post user_id:', product.user_id);
+  console.log('Post user.id:', product.user?.id);
+
+  // Owner check: use users.id from users table
+  const isOwner = currentUserDbId && product.user_id && currentUserDbId === product.user_id;
+  console.log('Current user db id:', currentUserDbId);
+  console.log('Post user_id:', product.user_id);
+  console.log('isOwner:', isOwner);
+
   // Seller info
   const sellerName = product.user?.name || 'Unknown';
   const sellerAvatar = product.user?.avatar ? { uri: product.user.avatar } : undefined;
+
+  // Edit functionality
+  const handleEdit = () => {
+    // Navigate to an edit screen or open a modal (for now, just show an alert)
+    Alert.alert('Edit Listing', 'Edit functionality coming soon!');
+    // Example: router.push(`/edit-listing/${id}`);
+  };
+
+  // Delete functionality
+  const handleDelete = async () => {
+    Alert.alert(
+      'Delete Listing',
+      'Are you sure you want to delete this listing? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.from('posts').delete().eq('id', id);
+            if (error) {
+              Alert.alert('Error', error.message || 'Failed to delete listing.');
+            } else {
+              Alert.alert('Deleted', 'Your listing has been deleted.');
+              router.replace('/');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -212,82 +288,98 @@ export default function ProductDetails() {
 
           <View style={styles.divider} />
 
-          {/* Seller card */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="person-circle-outline" size={18} color={TEXT} />
-              <Text style={styles.sectionTitle}>Seller Information</Text>
-            </View>
-            
-            <View style={styles.sellerCard}>
-              <View style={styles.sellerLeft}>
-                <Image source={sellerAvatar} style={styles.avatar} />
-                <View style={styles.sellerInfo}>
-                  <View style={styles.sellerNameRow}>
-                    <Text style={styles.sellerName}>{sellerName}</Text>
-                    {product.user?.verified && (
-                      <MaterialIcons name="verified" size={16} color={ACCENT} />
-                    )}
-                  </View>
-                  <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={14} color="#FFA500" />
-                    <Text style={styles.sellerRating}>{product.user?.rating}</Text>
-                    <Text style={styles.memberSince}>• {product.user?.memberSince}</Text>
+          {/* Seller card - only for non-owners */}
+          {!isOwner && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="person-circle-outline" size={18} color={TEXT} />
+                <Text style={styles.sectionTitle}>Seller Information</Text>
+              </View>
+              <View style={styles.sellerCard}>
+                <View style={styles.sellerLeft}>
+                  <Image source={sellerAvatar} style={styles.avatar} />
+                  <View style={styles.sellerInfo}>
+                    <View style={styles.sellerNameRow}>
+                      <Text style={styles.sellerName}>{sellerName}</Text>
+                      {product.user?.verified && (
+                        <MaterialIcons name="verified" size={16} color={ACCENT} />
+                      )}
+                    </View>
+                    <View style={styles.ratingRow}>
+                      <Ionicons name="star" size={14} color="#FFA500" />
+                      <Text style={styles.sellerRating}>{product.user?.rating}</Text>
+                      <Text style={styles.memberSince}>• {product.user?.memberSince}</Text>
+                    </View>
                   </View>
                 </View>
+                
+                <Pressable
+                  style={styles.viewProfileButton}
+                  onPress={() => {
+                    router.push(`/profile/${product.user.id}`);
+                  }}
+                >
+                  <Text style={styles.viewProfileText}>View</Text>
+                  <Ionicons name="chevron-forward" size={16} color={ACCENT} />
+                </Pressable>
               </View>
-              
-              <Pressable
-                style={styles.viewProfileButton}
-                onPress={() => {
-                  router.push(`/profile/${product.user.id}`);
-                }}
-              >
-                <Text style={styles.viewProfileText}>View</Text>
-                <Ionicons name="chevron-forward" size={16} color={ACCENT} />
-              </Pressable>
             </View>
-          </View>
+          )}
 
-          {/* Safety tips */}
-          <View style={styles.tipsCard}>
-            <View style={styles.tipsHeader}>
-              <Ionicons name="shield-checkmark" size={20} color="#10B981" />
-              <Text style={styles.tipsTitle}>Safety Tips</Text>
+          {/* Safety tips - only for non-owners */}
+          {!isOwner && (
+            <View style={styles.tipsCard}>
+              <View style={styles.tipsHeader}>
+                <Ionicons name="shield-checkmark" size={20} color="#10B981" />
+                <Text style={styles.tipsTitle}>Safety Tips</Text>
+              </View>
+              <Text style={styles.tipsText}>
+                {'• Meet in a public place\n• Check the item before purchasing\n• Pay only after collecting the item'}
+              </Text>
             </View>
-            <Text style={styles.tipsText}>
-              • Meet in a public place{'\n'}
-              • Check the item before purchasing{'\n'}
-              • Pay only after collecting the item
-            </Text>
-          </View>
+          )}
+
+          {/* Owner-specific or public view */}
+          {isOwner ? (
+            <View style={{ marginVertical: 16, padding: 16, backgroundColor: '#E0F2FE', borderRadius: 12 }}>
+              <Text style={{ color: '#0369A1', fontWeight: '700', fontSize: 16, marginBottom: 6 }}>This is your listing</Text>
+              <Text style={{ color: '#0369A1', marginBottom: 10 }}>You can delete this post.</Text>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Pressable style={{ backgroundColor: '#EF4444', padding: 10, borderRadius: 8 }} onPress={handleDelete}>
+                  <Text style={{ color: '#FFF', fontWeight: '700' }}>Delete</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
         </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Action bar */}
-      <View style={styles.actionBar}>
-        <Pressable
-          style={[styles.actionButton, styles.chatButton]}
-          onPress={() => {
-            router.push(`/chat/${product.user.id}`);
-          }}
-        >
-          <Ionicons name="chatbubble-outline" size={20} color={ACCENT} />
-          <Text style={styles.chatText}>Message</Text>
-        </Pressable>
-        
-        <Pressable
-          style={[styles.actionButton, styles.callButton]}
-          onPress={() => {
-            router.push(`/profile/${product.user.id}`);
-          }}
-        >
-          <Ionicons name="person" size={20} color="#FFF" />
-          <Text style={styles.callText}>View Profile</Text>
-        </Pressable>
-      </View>
+      {/* Action bar for non-owners only */}
+      {!isOwner && (
+        <View style={styles.actionBar}>
+          <Pressable
+            style={[styles.actionButton, styles.chatButton]}
+            onPress={() => {
+              router.push(`/chat/${product.user.id}`);
+            }}
+          >
+            <Ionicons name="chatbubble-outline" size={20} color={ACCENT} />
+            <Text style={styles.chatText}>Message</Text>
+          </Pressable>
+          
+          <Pressable
+            style={[styles.actionButton, styles.callButton]}
+            onPress={() => {
+              router.push(`/profile/${product.user.id}`);
+            }}
+          >
+            <Ionicons name="person" size={20} color="#FFF" />
+            <Text style={styles.callText}>View Profile</Text>
+          </Pressable>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
