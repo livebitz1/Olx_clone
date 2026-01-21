@@ -12,7 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { fetchMessages, subscribeToChat, sendMessage } from '@/lib/chat';
+import { fetchUserChats } from '@/lib/chat';
+import { useAuth } from '@/contexts/OTPAuthContext';
 
 // Color scheme
 const colors = {
@@ -31,35 +32,16 @@ const colors = {
 // Main Chats Screen
 export default function ChatsScreen() {
   const router = useRouter();
-  const [messages, setMessages] = useState<any[]>([]);
-  const [chatId, setChatId] = useState<string | null>(null); // Set this from route params or context
-  const [input, setInput] = useState('');
-  const [userId, setUserId] = useState<string>(''); // Set this from auth context or Firebase
+  const { user } = useAuth();
+  const userId = user?.id || '';
+  const [conversations, setConversations] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!chatId) return;
-    // Initial fetch
-    fetchMessages(chatId).then(({ data }) => {
-      if (data) setMessages(data);
+    if (!userId) return;
+    fetchUserChats(userId).then(({ data }) => {
+      if (data) setConversations(data);
     });
-    // Subscribe to realtime updates
-    const channel = subscribeToChat(chatId, (newMsg: any) => {
-      setMessages((prev) => [...prev, newMsg]);
-    });
-    return () => {
-      if (channel) {
-        // Unsubscribe on unmount
-        channel.unsubscribe();
-      }
-    };
-  }, [chatId]);
-
-  const handleSend = async () => {
-    if (!input.trim() || !chatId || !userId) return;
-    const error = await sendMessage(chatId, userId, input.trim());
-    if (!error) setInput('');
-    else alert('Failed to send message');
-  };
+  }, [userId]);
 
   const handleChatPress = (id: string) => {
     router.push(`/chat/${id}`);
@@ -68,7 +50,6 @@ export default function ChatsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
-
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
@@ -81,14 +62,13 @@ export default function ChatsScreen() {
           </TouchableOpacity>
         </View>
       </View>
-
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
         {/* Active Conversations */}
-        {messages.length === 0 ? (
+        {conversations.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="chatbubbles-outline" size={64} color={colors.textTertiary} />
             <Text style={styles.emptyTitle}>No messages yet</Text>
@@ -97,52 +77,46 @@ export default function ChatsScreen() {
             </Text>
           </View>
         ) : (
-          messages.map((msg) => (
-            <View key={msg.id} style={{ padding: 12 }}>
-              <Text style={{ fontWeight: 'bold' }}>{msg.sender_id}</Text>
-              <Text>{msg.text}</Text>
-              <Text style={{ color: colors.textTertiary, fontSize: 12 }}>
-                {msg.created_at}
-              </Text>
-            </View>
+          // Group by otherUser.id to ensure only one card per user
+          Object.values(
+            conversations.reduce((acc, conv) => {
+              if (!conv.otherUser?.id) return acc;
+              // If this user already exists, keep the one with the latest message
+              if (!acc[conv.otherUser.id] || (conv.lastMessage && acc[conv.otherUser.id].lastMessage && new Date(conv.lastMessage.created_at) > new Date(acc[conv.otherUser.id].lastMessage.created_at))) {
+                acc[conv.otherUser.id] = conv;
+              }
+              return acc;
+            }, {})
+          ).map((conv: any) => (
+            <TouchableOpacity
+              key={conv.chatId}
+              style={styles.chatCard}
+              onPress={() => handleChatPress(conv.chatId)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.cardRow}>
+                <Image
+                  source={conv.otherUser?.avatar ? { uri: conv.otherUser.avatar } : require('../../assets/images/react-logo.png')}
+                  style={styles.cardAvatar}
+                />
+                <View style={styles.cardContent}>
+                  <Text style={styles.cardName}>{conv.otherUser?.name || conv.otherUser?.id}</Text>
+                  <Text style={styles.cardText} numberOfLines={1} ellipsizeMode="tail">
+                    {conv.lastMessage?.text || 'No messages yet'}
+                  </Text>
+                </View>
+                <View style={styles.cardMeta}>
+                  {conv.lastMessage?.created_at && (
+                    <Text style={styles.cardTime}>
+                      {new Date(conv.lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
-      {/* Chat input bar */}
-      <View
-        style={{
-          flexDirection: 'row',
-          padding: 12,
-          backgroundColor: colors.white,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-        }}
-      >
-        <TextInput
-          style={{
-            flex: 1,
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: 20,
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-          }}
-          value={input}
-          onChangeText={setInput}
-          placeholder="Type a message..."
-        />
-        <TouchableOpacity
-          onPress={handleSend}
-          style={{
-            marginLeft: 8,
-            backgroundColor: colors.primary,
-            borderRadius: 20,
-            padding: 10,
-          }}
-        >
-          <Ionicons name="send" size={20} color={colors.white} />
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -206,5 +180,52 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 8,
     textAlign: 'center',
+  },
+
+  // Chat Card
+  chatCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    marginHorizontal: 12,
+    marginVertical: 6,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+    backgroundColor: colors.primaryLight,
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  cardName: {
+    fontWeight: '700',
+    fontSize: 16,
+    color: colors.text,
+  },
+  cardText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginTop: 2,
+  },
+  cardMeta: {
+    alignItems: 'flex-end',
+    marginLeft: 8,
+  },
+  cardTime: {
+    color: colors.textTertiary,
+    fontSize: 12,
   },
 });

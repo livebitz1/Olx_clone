@@ -122,6 +122,7 @@ export default function ChatScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const userId = getAuth().currentUser?.uid;
   const [seller, setSeller] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   // Fetch chat and seller info
   useEffect(() => {
@@ -141,16 +142,26 @@ export default function ChatScreen() {
   // Fetch and subscribe to messages
   useEffect(() => {
     if (!chatId) return;
+    setLoading(true);
     fetchMessagesForChat(chatId).then((data) => {
       setMessages(data || []);
+      setLoading(false);
     });
     const channel = subscribeToChatMessages(chatId, (msg) => {
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => {
+        // Deduplicate by id or created_at
+        const exists = prev.some((m) => m.id === msg.id || m.created_at === msg.created_at);
+        if (exists) return prev;
+        return [...prev, msg];
+      });
     });
     return () => {
       if (channel) channel.unsubscribe();
     };
   }, [chatId]);
+
+  // Always sort messages by created_at
+  const sortedMessages = [...messages].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -162,9 +173,16 @@ export default function ChatScreen() {
   // Handle send message
   const handleSend = async () => {
     if (!inputText.trim() || !chatId || !userId) return;
+    const newMessage = {
+      chat_id: chatId,
+      sender_id: userId,
+      text: inputText.trim(),
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, newMessage]); // Optimistically add message
+    setInputText('');
     const error = await sendMessageToChat(chatId, userId, inputText.trim());
-    if (!error) setInputText('');
-    else alert('Failed to send message');
+    if (error) alert('Failed to send message');
   };
 
   const handleBack = () => {
@@ -198,32 +216,31 @@ export default function ChatScreen() {
         </View>
       )}
       <KeyboardAvoidingView
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        keyboardVerticalOffset={90}
       >
-        {/* Chat Messages */}
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
-        >
-          {/* Date Divider */}
-          <View style={styles.dateDivider}>
-            <Text style={styles.dateDividerText}>Today</Text>
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: colors.textTertiary }}>Loading messages...</Text>
           </View>
-
-          {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))}
-
-          <View style={{ height: 16 }} />
-        </ScrollView>
-
-        {/* Message Input */}
-        <MessageInput value={inputText} onChangeText={setInputText} onSend={handleSend} />
+        ) : (
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.messagesContainer}
+            contentContainerStyle={{ paddingVertical: 12 }}
+            onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+          >
+            {sortedMessages.map((msg) => (
+              <MessageBubble key={msg.id || msg.created_at} message={msg} />
+            ))}
+          </ScrollView>
+        )}
+        <MessageInput
+          value={inputText}
+          onChangeText={setInputText}
+          onSend={handleSend}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
