@@ -13,96 +13,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
 const IMAGE_HEIGHT = 360;
 
-type Product = {
-  id: string;
-  title: string;
-  price: string;
-  location: string;
-  description: string;
-  images: any[];
-  category: string;
-  condition: string;
-  postedDate: string;
-  views: number;
-  seller: {
-    name: string;
-    avatar: any;
-    rating: number;
-    memberSince: string;
-    verified: boolean;
-  };
-};
-
-// Local mock products
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: 'l1',
-    title: 'Compact Car — Low mileage',
-    price: '$7,500',
-    location: 'San Francisco, CA',
-    category: 'Vehicles',
-    condition: 'Used - Excellent',
-    postedDate: '2 days ago',
-    views: 234,
-    description:
-      'Well-maintained compact car with low mileage. Recent service and new tires. Ideal for city driving and economical commutes. Clean interior and a reliable engine.',
-    images: [
-      require('../../assets/images/react-logo.png'),
-      require('../../assets/images/partial-react-logo.png'),
-      require('../../assets/images/icon.png'),
-    ],
-    seller: {
-      name: 'Alex Johnson',
-      avatar: require('../../assets/images/partial-react-logo.png'),
-      rating: 4.6,
-      memberSince: 'Jan 2022',
-      verified: true,
-    },
-  },
-  {
-    id: 'l2',
-    title: 'Modern Sofa — 3-seater',
-    price: '$250',
-    location: 'Austin, TX',
-    category: 'Furniture',
-    condition: 'Used - Good',
-    postedDate: '5 days ago',
-    views: 89,
-    description:
-      'Comfortable 3-seater sofa in very good condition. Neutral color that fits most interiors. Smoke-free home. Measurements available on request.',
-    images: [require('../../assets/images/icon.png'), require('../../assets/images/react-logo.png')],
-    seller: {
-      name: 'Maya Lee',
-      avatar: require('../../assets/images/icon.png'),
-      rating: 4.8,
-      memberSince: 'Mar 2021',
-      verified: true,
-    },
-  },
-];
-
-// Seller ID mapping for chat navigation
-const SELLER_CHAT_IDS: Record<string, string> = {
-  'Alex Johnson': 's1',
-  'Maya Lee': 's2',
-};
-
-// Seller ID mapping for profile navigation
-const SELLER_PROFILE_IDS: Record<string, string> = {
-  'Alex Johnson': 'alexjohnson',
-  'Maya Lee': 'mayalee',
-};
-
 export default function ProductDetails() {
   const params = useLocalSearchParams();
   const router = useRouter();
-  const id = (params as any).id ?? 'l1';
-
-  const product = MOCK_PRODUCTS.find((p) => p.id === id) ?? MOCK_PRODUCTS[0];
+  const id = (params as any).id;
 
   const navigation: any = useNavigation();
 
@@ -112,15 +31,54 @@ export default function ProductDetails() {
     }
   }, [navigation]);
 
+  const [product, setProduct] = useState<any>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [loading, setLoading] = useState(true);
   const scrollRef = useRef<ScrollView | null>(null);
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*, user:users(id, name, avatar)')
+        .eq('id', id)
+        .single();
+      if (error) {
+        setProduct(null);
+      } else {
+        setProduct(data);
+      }
+      setLoading(false);
+    };
+    if (id) fetchProduct();
+  }, [id]);
 
   const onScroll = (e: any) => {
     const x = e.nativeEvent.contentOffset.x;
     const index = Math.round(x / width);
     setActiveIndex(index);
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Text style={{ textAlign: 'center', marginTop: 40 }}>Loading...</Text>
+      </SafeAreaView>
+    );
+  }
+  if (!product) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Text style={{ textAlign: 'center', marginTop: 40 }}>Product not found.</Text>
+      </SafeAreaView>
+    );
+  }
+
+  // Seller info
+  const sellerName = product.user?.name || 'Unknown';
+  const sellerAvatar = product.user?.avatar ? { uri: product.user.avatar } : undefined;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -165,13 +123,13 @@ export default function ProductDetails() {
             onScroll={onScroll}
             scrollEventThrottle={16}
           >
-            {product.images.map((img, i) => (
-              <Image key={i} source={img} style={styles.image} resizeMode="cover" />
+            {Array.isArray(product.images) && product.images.map((img: string, i: number) => (
+              <Image key={i} source={{ uri: img }} style={styles.image} resizeMode="cover" />
             ))}
           </ScrollView>
 
           <View style={styles.pagination}>
-            {product.images.map((_, i) => (
+            {Array.isArray(product.images) && product.images.map((_: string, i: number) => (
               <View
                 key={i}
                 style={[
@@ -263,18 +221,18 @@ export default function ProductDetails() {
             
             <View style={styles.sellerCard}>
               <View style={styles.sellerLeft}>
-                <Image source={product.seller.avatar} style={styles.avatar} />
+                <Image source={sellerAvatar} style={styles.avatar} />
                 <View style={styles.sellerInfo}>
                   <View style={styles.sellerNameRow}>
-                    <Text style={styles.sellerName}>{product.seller.name}</Text>
-                    {product.seller.verified && (
+                    <Text style={styles.sellerName}>{sellerName}</Text>
+                    {product.user?.verified && (
                       <MaterialIcons name="verified" size={16} color={ACCENT} />
                     )}
                   </View>
                   <View style={styles.ratingRow}>
                     <Ionicons name="star" size={14} color="#FFA500" />
-                    <Text style={styles.sellerRating}>{product.seller.rating}</Text>
-                    <Text style={styles.memberSince}>• {product.seller.memberSince}</Text>
+                    <Text style={styles.sellerRating}>{product.user?.rating}</Text>
+                    <Text style={styles.memberSince}>• {product.user?.memberSince}</Text>
                   </View>
                 </View>
               </View>
@@ -282,8 +240,7 @@ export default function ProductDetails() {
               <Pressable
                 style={styles.viewProfileButton}
                 onPress={() => {
-                  const profileId = SELLER_PROFILE_IDS[product.seller.name] || 'default';
-                  router.push(`/profile/${profileId}`);
+                  router.push(`/profile/${product.user.id}`);
                 }}
               >
                 <Text style={styles.viewProfileText}>View</Text>
@@ -314,8 +271,7 @@ export default function ProductDetails() {
         <Pressable
           style={[styles.actionButton, styles.chatButton]}
           onPress={() => {
-            const sellerId = SELLER_CHAT_IDS[product.seller.name] || 'default';
-            router.push(`/chat/${sellerId}`);
+            router.push(`/chat/${product.user.id}`);
           }}
         >
           <Ionicons name="chatbubble-outline" size={20} color={ACCENT} />
@@ -325,8 +281,7 @@ export default function ProductDetails() {
         <Pressable
           style={[styles.actionButton, styles.callButton]}
           onPress={() => {
-            const profileId = SELLER_PROFILE_IDS[product.seller.name] || 'default';
-            router.push(`/profile/${profileId}`);
+            router.push(`/profile/${product.user.id}`);
           }}
         >
           <Ionicons name="person" size={20} color="#FFF" />
