@@ -700,27 +700,46 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchListings = async () => {
-      setIsLoading(true);
-      // Fetch posts and join with user (seller) info
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*, user:users(id, name, avatar)')
-        .order('created_at', { ascending: false });
-      if (error) {
-        console.error('[Home] Error fetching posts:', error.message);
-        setListings([]);
-      } else {
-        setListings((data || []).map((item) => ({
-          ...item,
-          createdAt: item.created_at,
-          user: item.user,
-        })));
-      }
-      setIsLoading(false);
-    };
+    // Subscribe to realtime changes in the posts table
+    const channel = supabase
+      .channel('realtime-posts')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'posts' },
+        (payload) => {
+          // Refetch posts on any insert, update, or delete
+          fetchListings();
+        }
+      )
+      .subscribe();
+
+    // Initial fetch
     fetchListings();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  // Move fetchListings outside useEffect so it can be called from realtime handler
+  const fetchListings = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*, user:users(id, name, avatar)')
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('[Home] Error fetching posts:', error.message);
+      setListings([]);
+    } else {
+      setListings((data || []).map((item) => ({
+        ...item,
+        createdAt: item.created_at,
+        user: item.user,
+      })));
+    }
+    setIsLoading(false);
+  };
 
   const handleCategoryPress = (categoryId: string) => {
     setSelectedCategory(selectedCategory === categoryId ? null : categoryId);

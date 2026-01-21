@@ -136,19 +136,27 @@ export default function ProductDetails() {
   const handleDelete = async () => {
     Alert.alert(
       'Delete Listing',
-      'Are you sure you want to delete this listing? This action cannot be undone.',
+      'Are you sure you want to permanently delete this listing? This action cannot be undone. All associated data will be removed.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const { error } = await supabase.from('posts').delete().eq('id', id);
-            if (error) {
-              Alert.alert('Error', error.message || 'Failed to delete listing.');
-            } else {
-              Alert.alert('Deleted', 'Your listing has been deleted.');
-              router.replace('/');
+            try {
+              const { error } = await supabase.from('posts').delete().eq('id', id);
+              if (error) {
+                Alert.alert('Error', error.message || 'Failed to delete listing.');
+              } else {
+                Alert.alert('Deleted', 'Your listing has been deleted successfully.', [
+                  {
+                    text: 'OK',
+                    onPress: () => router.replace('/'),
+                  },
+                ]);
+              }
+            } catch (err) {
+              Alert.alert('Error', 'An unexpected error occurred while deleting the listing.');
             }
           },
         },
