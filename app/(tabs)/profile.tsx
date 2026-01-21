@@ -797,7 +797,7 @@ export default function ProfileScreen() {
             <View style={styles.statsRow}>
               <StatItem value={activeListings.length} label="Listings" />
               <StatItem value={soldListings.length} label="Sold" />
-              <StatItem value={0} label="Reviews" />
+              <StatItem value={user.followers ?? 0} label="Followers" />
             </View>
           </View>
 

@@ -123,6 +123,7 @@ export default function ChatScreen() {
   const userId = getAuth().currentUser?.uid;
   const [seller, setSeller] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const initialFetched = useRef(false);
 
   // Fetch chat and seller info
   useEffect(() => {
@@ -143,25 +144,36 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!chatId) return;
     setLoading(true);
-    fetchMessagesForChat(chatId).then((data) => {
-      setMessages(data || []);
-      setLoading(false);
-    });
+    let isMounted = true;
+    fetchMessagesForChat(chatId)
+      .then((data) => {
+        if (isMounted) setMessages(data || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+    // Subscribe to new messages via sockets
     const channel = subscribeToChatMessages(chatId, (msg) => {
+      console.log('[Realtime] New message received via socket:', msg);
       setMessages((prev) => {
-        // Deduplicate by id or created_at
-        const exists = prev.some((m) => m.id === msg.id || m.created_at === msg.created_at);
-        if (exists) return prev;
+        // Deduplicate by id
+        if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
     });
+    // Clean up socket subscription on unmount
     return () => {
+      isMounted = false;
       if (channel) channel.unsubscribe();
     };
   }, [chatId]);
 
+  useEffect(() => {
+    console.log('[Chat] Messages state after fetch/subscribe:', messages);
+  }, [messages]);
+
   // Always sort messages by created_at
   const sortedMessages = [...messages].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  console.log('Sorted messages for render:', sortedMessages);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -173,15 +185,9 @@ export default function ChatScreen() {
   // Handle send message
   const handleSend = async () => {
     if (!inputText.trim() || !chatId || !userId) return;
-    const newMessage = {
-      chat_id: chatId,
-      sender_id: userId,
-      text: inputText.trim(),
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, newMessage]); // Optimistically add message
     setInputText('');
     const error = await sendMessageToChat(chatId, userId, inputText.trim());
+    console.log('Send message:', { chatId, userId, text: inputText.trim(), error });
     if (error) alert('Failed to send message');
   };
 
@@ -192,6 +198,18 @@ export default function ChatScreen() {
       router.push('/');
     }
   };
+
+  // TEMP: Debug - fetch and log all messages in the table
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.from('message').select('*');
+      if (error) {
+        console.error('[Chat][DEBUG] Error fetching all messages:', error);
+      } else {
+        console.log('[Chat][DEBUG] All messages in table:', data);
+      }
+    })();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -217,8 +235,8 @@ export default function ChatScreen() {
       )}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={90}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {loading ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

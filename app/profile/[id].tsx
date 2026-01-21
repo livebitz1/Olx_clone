@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_SIZE = (width - 48) / 3;
@@ -29,116 +30,6 @@ const colors = {
   success: '#10B981',
   warning: '#F59E0B',
   danger: '#EF4444',
-};
-
-// User type
-type User = {
-  id: string;
-  username: string;
-  fullName: string;
-  avatar: any;
-  bio: string;
-  location: string;
-  joinedDate: string;
-  isVerified: boolean;
-  stats: {
-    activeListings: number;
-    itemsSold: number;
-    rating: number;
-    reviews: number;
-  };
-  listings: Listing[];
-};
-
-type Listing = {
-  id: string;
-  title: string;
-  price: string;
-  image: any;
-  isSold: boolean;
-};
-
-// Mock users database
-const USERS: Record<string, User> = {
-  alexjohnson: {
-    id: 'seller1',
-    username: 'alexjohnson',
-    fullName: 'Alex Johnson',
-    avatar: require('../../assets/images/partial-react-logo.png'),
-    bio: 'Car enthusiast & gadget lover. Quality guaranteed! 🚗',
-    location: 'Austin, TX',
-    joinedDate: 'January 2022',
-    isVerified: true,
-    stats: {
-      activeListings: 12,
-      itemsSold: 56,
-      rating: 4.8,
-      reviews: 78,
-    },
-    listings: [
-      { id: 'l1', title: 'Compact Car', price: '$7,500', image: require('../../assets/images/react-logo.png'), isSold: false },
-      { id: 's2', title: 'Bike Helmet', price: '$45', image: require('../../assets/images/icon.png'), isSold: false },
-      { id: 's3', title: 'Tool Set', price: '$80', image: require('../../assets/images/partial-react-logo.png'), isSold: false },
-    ],
-  },
-  mayalee: {
-    id: 'seller2',
-    username: 'mayalee',
-    fullName: 'Maya Lee',
-    avatar: require('../../assets/images/icon.png'),
-    bio: 'Home decor specialist. Unique finds at great prices! ✨',
-    location: 'New York, NY',
-    joinedDate: 'June 2021',
-    isVerified: true,
-    stats: {
-      activeListings: 8,
-      itemsSold: 89,
-      rating: 4.9,
-      reviews: 124,
-    },
-    listings: [
-      { id: 'l2', title: 'Modern Sofa', price: '$250', image: require('../../assets/images/icon.png'), isSold: false },
-      { id: 'm2', title: 'Table Lamp', price: '$35', image: require('../../assets/images/react-logo.png'), isSold: false },
-    ],
-  },
-  samcarter: {
-    id: 'seller3',
-    username: 'samcarter',
-    fullName: 'Sam Carter',
-    avatar: require('../../assets/images/react-logo.png'),
-    bio: 'Tech gadgets & electronics. All items tested! 📱',
-    location: 'Seattle, WA',
-    joinedDate: 'March 2023',
-    isVerified: false,
-    stats: {
-      activeListings: 5,
-      itemsSold: 23,
-      rating: 4.5,
-      reviews: 31,
-    },
-    listings: [
-      { id: 'l3', title: 'Smartphone', price: '$420', image: require('../../assets/images/partial-react-logo.png'), isSold: false },
-    ],
-  },
-};
-
-// Default user if not found
-const DEFAULT_USER: User = {
-  id: 'default',
-  username: 'seller',
-  fullName: 'Seller',
-  avatar: require('../../assets/images/react-logo.png'),
-  bio: 'Marketplace seller',
-  location: 'Unknown',
-  joinedDate: 'Recently',
-  isVerified: false,
-  stats: {
-    activeListings: 0,
-    itemsSold: 0,
-    rating: 0,
-    reviews: 0,
-  },
-  listings: [],
 };
 
 // Stat Item Component
@@ -165,7 +56,7 @@ const RatingStars: React.FC<{ rating: number }> = ({ rating }) => (
 );
 
 // Listing Grid Item Component
-const ListingGridItem: React.FC<{ listing: Listing; onPress: () => void }> = ({ listing, onPress }) => (
+const ListingGridItem: React.FC<{ listing: any; onPress: () => void }> = ({ listing, onPress }) => (
   <TouchableOpacity style={styles.gridItem} onPress={onPress} activeOpacity={0.8}>
     <Image source={listing.image} style={styles.gridImage} />
     {listing.isSold && (
@@ -183,10 +74,24 @@ const ListingGridItem: React.FC<{ listing: Listing; onPress: () => void }> = ({ 
 export default function UserProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const userId = (params as any).id ?? 'default';
+  const userId = (params as any).id;
+  const [user, setUser] = useState<any>(null);
+  const [listings, setListings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Find user by id or username
-  const user = USERS[userId] ?? Object.values(USERS).find((u) => u.id === userId) ?? DEFAULT_USER;
+  useEffect(() => {
+    if (!userId) return;
+    setLoading(true);
+    (async () => {
+      // Fetch user
+      const { data: userData } = await supabase.from('users').select('*').eq('id', userId).single();
+      setUser(userData);
+      // Fetch listings
+      const { data: userListings } = await supabase.from('posts').select('*').eq('user_id', userId);
+      setListings(userListings || []);
+      setLoading(false);
+    })();
+  }, [userId]);
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -197,14 +102,29 @@ export default function UserProfileScreen() {
   };
 
   const handleChat = () => {
-    router.push(`/chat/${user.id}`);
+    router.push(`/chat/${userId}`);
   };
 
   const handleListingPress = (listingId: string) => {
     router.push(`/listing/${listingId}`);
   };
 
-  const activeListings = user.listings.filter((l) => !l.isSold);
+  const activeListings = listings.filter((l) => !l.is_sold);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={{ textAlign: 'center', marginTop: 40 }}>Loading profile...</Text>
+      </SafeAreaView>
+    );
+  }
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={{ textAlign: 'center', marginTop: 40 }}>User not found.</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -233,35 +153,30 @@ export default function UserProfileScreen() {
           {/* Avatar & Stats Row */}
           <View style={styles.avatarStatsRow}>
             <View style={styles.avatarWrapper}>
-              <Image source={user.avatar} style={styles.avatar} />
-              {user.isVerified && (
+              <Image source={user.avatar ? { uri: user.avatar } : require('../../assets/images/react-logo.png')} style={styles.avatar} />
+              {user.is_verified && (
                 <View style={styles.verifiedBadge}>
                   <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
                 </View>
               )}
             </View>
-
             <View style={styles.statsRow}>
-              <StatItem value={user.stats.activeListings} label="Listings" />
-              <StatItem value={user.stats.itemsSold} label="Sold" />
-              <StatItem value={user.stats.reviews} label="Reviews" />
+              <StatItem value={activeListings.length} label="Listings" />
+              {/* You can fetch and show itemsSold, followers, etc. if you store them */}
+              <StatItem value={user.followers ?? 0} label="Followers" />
             </View>
           </View>
-
           {/* User Info */}
           <View style={styles.userInfo}>
-            <Text style={styles.fullName}>{user.fullName}</Text>
-            <Text style={styles.username}>@{user.username}</Text>
-
+            <Text style={styles.fullName}>{user.name}</Text>
+            <Text style={styles.username}>@{user.phone}</Text>
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-              <Text style={styles.location}>{user.location}</Text>
-              <Text style={styles.joinedDate}>• Joined {user.joinedDate}</Text>
+              <Text style={styles.location}>{user.location || 'Unknown'}</Text>
+              {/* <Text style={styles.joinedDate}>• Joined {user.joinedDate}</Text> */}
             </View>
-
             <Text style={styles.bio}>{user.bio}</Text>
-
-            <RatingStars rating={user.stats.rating} />
+            {/* <RatingStars rating={user.stats.rating} /> */}
           </View>
 
           {/* Action Buttons */}
@@ -288,7 +203,12 @@ export default function UserProfileScreen() {
             {activeListings.map((listing) => (
               <ListingGridItem
                 key={listing.id}
-                listing={listing}
+                listing={{
+                  ...listing,
+                  image: listing.images && listing.images.length > 0 ? { uri: listing.images[0] } : require('../../assets/images/react-logo.png'),
+                  price: `$${listing.price}`,
+                  isSold: listing.is_sold,
+                }}
                 onPress={() => handleListingPress(listing.id)}
               />
             ))}
@@ -315,11 +235,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
   },
   backButton: {
     width: 40,
@@ -337,46 +262,64 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   topBarTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: 'bold',
     color: colors.text,
+    flex: 1,
+    textAlign: 'center',
   },
   moreButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scrollView: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 32,
   },
-
-  // Header
   header: {
     backgroundColor: colors.white,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 24,
-    marginBottom: 8,
+    borderRadius: 24,
+    margin: 16,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
   },
   avatarStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
     marginBottom: 16,
+    justifyContent: 'space-between',
   },
   avatarWrapper: {
-    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: colors.primaryLight,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+    marginRight: 18,
   },
   avatar: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    borderWidth: 3,
-    borderColor: colors.border,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   verifiedBadge: {
     position: 'absolute',
@@ -384,151 +327,149 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: colors.white,
     borderRadius: 10,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
   },
   statsRow: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginLeft: 20,
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    borderRadius: 16,
+    paddingVertical: 12,
+    marginLeft: 8,
   },
   statItem: {
     alignItems: 'center',
+    marginHorizontal: 8,
   },
   statValue: {
     fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
+    fontWeight: 'bold',
+    color: colors.primary,
   },
   statLabel: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: colors.textTertiary,
     marginTop: 2,
   },
-
-  // User Info
   userInfo: {
-    marginBottom: 16,
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 8,
   },
   fullName: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: 'bold',
     color: colors.text,
+    marginBottom: 2,
   },
   username: {
     fontSize: 14,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginBottom: 6,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginBottom: 6,
   },
   location: {
     fontSize: 13,
-    color: colors.textSecondary,
-    marginLeft: 4,
-  },
-  joinedDate: {
-    fontSize: 13,
     color: colors.textTertiary,
-    marginLeft: 6,
+    marginLeft: 4,
   },
   bio: {
     fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
-    marginTop: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 8,
+    marginTop: 2,
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  ratingText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginLeft: 6,
-  },
-
-  // Action Buttons
   actionButtons: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'center',
+    marginTop: 14,
+    width: '100%',
   },
   chatButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: colors.primary,
-    paddingVertical: 12,
-    borderRadius: 10,
-    gap: 8,
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    marginRight: 10,
+    elevation: 2,
   },
   chatButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
     color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 15,
+    marginLeft: 6,
   },
   followButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primaryLight,
-    paddingVertical: 12,
-    borderRadius: 10,
-    gap: 8,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    elevation: 1,
   },
   followButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
     color: colors.primary,
+    fontWeight: 'bold',
+    fontSize: 15,
+    marginLeft: 6,
   },
-
-  // Section Header
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 12,
+    marginTop: 18,
+    marginBottom: 8,
+    paddingHorizontal: 18,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: 'bold',
     color: colors.text,
   },
   sectionCount: {
     fontSize: 14,
-    color: colors.textSecondary,
-    backgroundColor: colors.white,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    overflow: 'hidden',
+    color: colors.textTertiary,
   },
-
-  // Listings Grid
   listingsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'flex-start',
     paddingHorizontal: 12,
-    gap: 6,
   },
   gridItem: {
     width: GRID_ITEM_SIZE,
-    height: GRID_ITEM_SIZE,
-    borderRadius: 8,
-    overflow: 'hidden',
+    height: GRID_ITEM_SIZE + 36,
     backgroundColor: colors.white,
+    borderRadius: 16,
+    margin: 6,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    overflow: 'hidden',
   },
   gridImage: {
-    width: '100%',
-    height: '100%',
+    width: GRID_ITEM_SIZE,
+    height: GRID_ITEM_SIZE,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     resizeMode: 'cover',
   },
   gridItemOverlay: {
@@ -536,38 +477,39 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 6,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    paddingVertical: 6,
+    alignItems: 'center',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   gridPrice: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.white,
+    color: colors.primary,
+    fontWeight: 'bold',
+    fontSize: 15,
   },
   soldBadge: {
     position: 'absolute',
-    top: 6,
-    left: 6,
+    top: 8,
+    right: 8,
     backgroundColor: colors.danger,
-    paddingHorizontal: 6,
+    borderRadius: 8,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
+    zIndex: 2,
   },
   soldBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
     color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 11,
   },
-
-  // Empty State
   emptyState: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 48,
+    marginTop: 32,
   },
   emptyStateText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 12,
+    color: colors.textTertiary,
+    fontSize: 15,
+    marginTop: 8,
   },
 });
