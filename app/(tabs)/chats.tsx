@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { fetchMessages, subscribeToChat, sendMessage } from '@/lib/chat';
 
 // Color scheme
 const colors = {
@@ -26,93 +28,38 @@ const colors = {
   unread: '#EF4444',
 };
 
-// Mock chat conversations
-const CONVERSATIONS = [
-  {
-    id: 's1',
-    name: 'Alex Johnson',
-    avatar: require('../../assets/images/partial-react-logo.png'),
-    lastMessage: 'I can do $50 off if you pick it up today.',
-    time: '2m ago',
-    unreadCount: 2,
-    isOnline: true,
-    product: 'Compact Car',
-  },
-  {
-    id: 's2',
-    name: 'Maya Lee',
-    avatar: require('../../assets/images/icon.png'),
-    lastMessage: 'Sure, let me know when you are free.',
-    time: '1h ago',
-    unreadCount: 0,
-    isOnline: false,
-    product: 'Modern Sofa',
-  },
-  {
-    id: 's3',
-    name: 'Sam Carter',
-    avatar: require('../../assets/images/react-logo.png'),
-    lastMessage: 'Is the price negotiable?',
-    time: '3h ago',
-    unreadCount: 1,
-    isOnline: true,
-    product: 'Smartphone',
-  },
-  {
-    id: 's4',
-    name: 'Jordan Smith',
-    avatar: require('../../assets/images/partial-react-logo.png'),
-    lastMessage: 'Thanks for your interest!',
-    time: 'Yesterday',
-    unreadCount: 0,
-    isOnline: false,
-    product: 'Vintage Bicycle',
-  },
-];
-
-// Chat Item Component
-const ChatItem: React.FC<{
-  conversation: typeof CONVERSATIONS[number];
-  onPress: () => void;
-}> = ({ conversation, onPress }) => (
-  <TouchableOpacity style={styles.chatItem} onPress={onPress} activeOpacity={0.7}>
-    <View style={styles.avatarContainer}>
-      <Image source={conversation.avatar} style={styles.avatar} />
-      {conversation.isOnline && <View style={styles.onlineIndicator} />}
-    </View>
-
-    <View style={styles.chatContent}>
-      <View style={styles.chatHeader}>
-        <Text style={styles.chatName}>{conversation.name}</Text>
-        <Text style={[styles.chatTime, conversation.unreadCount > 0 && styles.chatTimeUnread]}>
-          {conversation.time}
-        </Text>
-      </View>
-      <View style={styles.chatPreview}>
-        <View style={styles.productBadge}>
-          <Ionicons name="pricetag" size={10} color={colors.primary} />
-          <Text style={styles.productText}>{conversation.product}</Text>
-        </View>
-      </View>
-      <Text
-        style={[styles.lastMessage, conversation.unreadCount > 0 && styles.lastMessageUnread]}
-        numberOfLines={1}
-      >
-        {conversation.lastMessage}
-      </Text>
-    </View>
-
-    {conversation.unreadCount > 0 && (
-      <View style={styles.unreadBadge}>
-        <Text style={styles.unreadText}>{conversation.unreadCount}</Text>
-      </View>
-    )}
-  </TouchableOpacity>
-);
-
 // Main Chats Screen
 export default function ChatsScreen() {
   const router = useRouter();
+  const [messages, setMessages] = useState<any[]>([]);
+  const [chatId, setChatId] = useState<string | null>(null); // Set this from route params or context
+  const [input, setInput] = useState('');
+  const [userId, setUserId] = useState<string>(''); // Set this from auth context or Firebase
+
+  useEffect(() => {
+    if (!chatId) return;
+    // Initial fetch
+    fetchMessages(chatId).then(({ data }) => {
+      if (data) setMessages(data);
+    });
+    // Subscribe to realtime updates
+    const channel = subscribeToChat(chatId, (newMsg: any) => {
+      setMessages((prev) => [...prev, newMsg]);
+    });
+    return () => {
+      if (channel) {
+        // Unsubscribe on unmount
+        channel.unsubscribe();
+      }
+    };
+  }, [chatId]);
+
+  const handleSend = async () => {
+    if (!input.trim() || !chatId || !userId) return;
+    const error = await sendMessage(chatId, userId, input.trim());
+    if (!error) setInput('');
+    else alert('Failed to send message');
+  };
 
   const handleChatPress = (id: string) => {
     router.push(`/chat/${id}`);
@@ -141,15 +88,7 @@ export default function ChatsScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Active Conversations */}
-        {CONVERSATIONS.map((conversation) => (
-          <ChatItem
-            key={conversation.id}
-            conversation={conversation}
-            onPress={() => handleChatPress(conversation.id)}
-          />
-        ))}
-
-        {CONVERSATIONS.length === 0 && (
+        {messages.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="chatbubbles-outline" size={64} color={colors.textTertiary} />
             <Text style={styles.emptyTitle}>No messages yet</Text>
@@ -157,8 +96,53 @@ export default function ChatsScreen() {
               Start a conversation by messaging a seller
             </Text>
           </View>
+        ) : (
+          messages.map((msg) => (
+            <View key={msg.id} style={{ padding: 12 }}>
+              <Text style={{ fontWeight: 'bold' }}>{msg.sender_id}</Text>
+              <Text>{msg.text}</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: 12 }}>
+                {msg.created_at}
+              </Text>
+            </View>
+          ))
         )}
       </ScrollView>
+      {/* Chat input bar */}
+      <View
+        style={{
+          flexDirection: 'row',
+          padding: 12,
+          backgroundColor: colors.white,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+        }}
+      >
+        <TextInput
+          style={{
+            flex: 1,
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: 20,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+          }}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Type a message..."
+        />
+        <TouchableOpacity
+          onPress={handleSend}
+          style={{
+            marginLeft: 8,
+            backgroundColor: colors.primary,
+            borderRadius: 20,
+            padding: 10,
+          }}
+        >
+          <Ionicons name="send" size={20} color={colors.white} />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -202,105 +186,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  // Chat Item
-  chatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  avatarContainer: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: colors.online,
-    borderWidth: 2,
-    borderColor: colors.white,
-  },
-  chatContent: {
-    flex: 1,
-    marginLeft: 14,
-  },
-  chatHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  chatName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  chatTime: {
-    fontSize: 12,
-    color: colors.textTertiary,
-    fontWeight: '500',
-  },
-  chatTimeUnread: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  chatPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  productBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 4,
-  },
-  productText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  lastMessage: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '400',
-  },
-  lastMessageUnread: {
-    color: colors.text,
-    fontWeight: '600',
-  },
-  unreadBadge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.unread,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
-    marginLeft: 8,
-  },
-  unreadText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.white,
   },
 
   // Empty State

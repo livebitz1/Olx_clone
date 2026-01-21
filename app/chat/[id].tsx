@@ -14,6 +14,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { fetchMessagesForChat, subscribeToChatMessages, sendMessageToChat } from '@/lib/chatRealtime';
+import { getAuth } from 'firebase/auth';
+import { supabase } from '@/lib/supabase';
 
 // Color scheme
 const colors = {
@@ -31,89 +34,6 @@ const colors = {
   inputBg: '#FFFFFF',
 };
 
-// Message type
-type Message = {
-  id: string;
-  text: string;
-  sender: 'user' | 'seller';
-  timestamp: Date;
-};
-
-// Mock seller data
-const MOCK_SELLERS: Record<string, { name: string; avatar: any; isOnline: boolean; lastSeen: string }> = {
-  s1: {
-    name: 'Alex Johnson',
-    avatar: require('../../assets/images/partial-react-logo.png'),
-    isOnline: true,
-    lastSeen: 'Online',
-  },
-  s2: {
-    name: 'Maya Lee',
-    avatar: require('../../assets/images/icon.png'),
-    isOnline: false,
-    lastSeen: 'Last seen 2h ago',
-  },
-  // User IDs from profile pages
-  seller1: {
-    name: 'Alex Johnson',
-    avatar: require('../../assets/images/partial-react-logo.png'),
-    isOnline: true,
-    lastSeen: 'Online',
-  },
-  seller2: {
-    name: 'Maya Lee',
-    avatar: require('../../assets/images/icon.png'),
-    isOnline: false,
-    lastSeen: 'Last seen 2h ago',
-  },
-  seller3: {
-    name: 'Sam Carter',
-    avatar: require('../../assets/images/react-logo.png'),
-    isOnline: true,
-    lastSeen: 'Online',
-  },
-  default: {
-    name: 'Seller',
-    avatar: require('../../assets/images/react-logo.png'),
-    isOnline: true,
-    lastSeen: 'Online',
-  },
-};
-
-// Mock initial messages
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: 'm1',
-    text: 'Hi! Is this item still available?',
-    sender: 'user',
-    timestamp: new Date(Date.now() - 3600000 * 2),
-  },
-  {
-    id: 'm2',
-    text: "Yes, it is still available! Are you interested?",
-    sender: 'seller',
-    timestamp: new Date(Date.now() - 3600000 * 1.5),
-  },
-  {
-    id: 'm3',
-    text: "Yes, I am. What is the best price you can offer?",
-    sender: 'user',
-    timestamp: new Date(Date.now() - 3600000),
-  },
-  {
-    id: 'm4',
-    text: 'I can do $50 off if you pick it up today. Does that work for you?',
-    sender: 'seller',
-    timestamp: new Date(Date.now() - 1800000),
-  },
-  {
-    id: 'm5',
-    text: 'That sounds great! Where can I meet you?',
-    sender: 'user',
-    timestamp: new Date(Date.now() - 900000),
-  },
-];
-
 // Format timestamp
 const formatTime = (date: Date): string => {
   const hours = date.getHours();
@@ -125,8 +45,8 @@ const formatTime = (date: Date): string => {
 };
 
 // Message Bubble Component
-const MessageBubble: React.FC<{ message: Message }> = ({ message }) => {
-  const isUser = message.sender === 'user';
+const MessageBubble: React.FC<{ message: any }> = ({ message }) => {
+  const isUser = message.sender_id === getAuth().currentUser?.uid;
 
   return (
     <View
@@ -146,53 +66,11 @@ const MessageBubble: React.FC<{ message: Message }> = ({ message }) => {
         </Text>
       </View>
       <Text style={[styles.messageTime, isUser && styles.messageTimeRight]}>
-        {formatTime(message.timestamp)}
+        {formatTime(new Date(message.created_at))}
       </Text>
     </View>
   );
 };
-
-// Chat Header Component
-const ChatHeader: React.FC<{
-  seller: typeof MOCK_SELLERS['default'];
-  onBack: () => void;
-}> = ({ seller, onBack }) => (
-  <View style={styles.header}>
-    <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
-      <View style={styles.backButtonInner}>
-        <Ionicons name="arrow-back" size={20} color={colors.primary} />
-      </View>
-    </TouchableOpacity>
-
-    <TouchableOpacity style={styles.headerContent} activeOpacity={0.8}>
-      <View style={styles.avatarContainer}>
-        <Image source={seller.avatar} style={styles.avatar} />
-        {seller.isOnline && <View style={styles.onlineIndicator} />}
-      </View>
-      <View style={styles.headerInfo}>
-        <Text style={styles.headerName}>{seller.name}</Text>
-        <View style={styles.statusRow}>
-          {seller.isOnline && <View style={styles.statusDot} />}
-          <Text style={[styles.headerStatus, seller.isOnline && styles.headerStatusOnline]}>
-            {seller.lastSeen}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-
-    <View style={styles.headerActions}>
-      <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.7}>
-        <Ionicons name="videocam-outline" size={22} color={colors.text} />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.7}>
-        <Ionicons name="call-outline" size={20} color={colors.text} />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.7}>
-        <Ionicons name="ellipsis-vertical" size={20} color={colors.text} />
-      </TouchableOpacity>
-    </View>
-  </View>
-);
 
 // Message Input Component
 const MessageInput: React.FC<{
@@ -238,13 +116,41 @@ const MessageInput: React.FC<{
 export default function ChatScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
-  const sellerId = (params as any).id ?? 'default';
-
-  const seller = MOCK_SELLERS[sellerId] ?? MOCK_SELLERS.default;
-
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const chatId = (params as any).id;
+  const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
+  const userId = getAuth().currentUser?.uid;
+  const [seller, setSeller] = useState<any>(null);
+
+  // Fetch chat and seller info
+  useEffect(() => {
+    if (!chatId || !userId) return;
+    (async () => {
+      // Get chat row
+      const { data: chat } = await supabase.from('chat').select('*').eq('id', chatId).single();
+      if (!chat) return;
+      // Determine seller id (the other user)
+      const sellerId = chat.user1_id === userId ? chat.user2_id : chat.user1_id;
+      // Fetch seller info
+      const { data: sellerData } = await supabase.from('users').select('id, name, avatar').eq('id', sellerId).single();
+      setSeller(sellerData);
+    })();
+  }, [chatId, userId]);
+
+  // Fetch and subscribe to messages
+  useEffect(() => {
+    if (!chatId) return;
+    fetchMessagesForChat(chatId).then((data) => {
+      setMessages(data || []);
+    });
+    const channel = subscribeToChatMessages(chatId, (msg) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+    return () => {
+      if (channel) channel.unsubscribe();
+    };
+  }, [chatId]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -254,38 +160,11 @@ export default function ChatScreen() {
   }, [messages]);
 
   // Handle send message
-  const handleSend = () => {
-    if (inputText.trim().length === 0) return;
-
-    const newMessage: Message = {
-      id: `m${Date.now()}`,
-      text: inputText.trim(),
-      sender: 'user',
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
-    setInputText('');
-
-    // Simulate seller response after a delay
-    setTimeout(() => {
-      const responses = [
-        "Got it! Let me check on that for you.",
-        "Sure, I will get back to you shortly.",
-        "Thanks for your message!",
-        "That works for me!",
-        "I will send you the details soon.",
-      ];
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-
-      const sellerReply: Message = {
-        id: `m${Date.now() + 1}`,
-        text: randomResponse,
-        sender: 'seller',
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, sellerReply]);
-    }, 1500);
+  const handleSend = async () => {
+    if (!inputText.trim() || !chatId || !userId) return;
+    const error = await sendMessageToChat(chatId, userId, inputText.trim());
+    if (!error) setInputText('');
+    else alert('Failed to send message');
   };
 
   const handleBack = () => {
@@ -299,8 +178,25 @@ export default function ChatScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ChatHeader seller={seller} onBack={handleBack} />
-
+      {/* Enhanced ChatHeader with real seller info */}
+      {seller && (
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.7}>
+            <View style={styles.backButtonInner}>
+              <Ionicons name="arrow-back" size={20} color={colors.primary} />
+            </View>
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <View style={styles.avatarContainer}>
+              <Image source={seller.avatar ? { uri: seller.avatar } : require('../../assets/images/react-logo.png')} style={styles.avatar} />
+            </View>
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerName}>{seller.name || 'User'}</Text>
+              {/* You can add online status here if you track it */}
+            </View>
+          </View>
+        </View>
+      )}
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

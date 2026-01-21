@@ -369,8 +369,31 @@ export default function ProductDetails() {
         <View style={styles.actionBar}>
           <Pressable
             style={[styles.actionButton, styles.chatButton]}
-            onPress={() => {
-              router.push(`/chat/${product.user.id}`);
+            onPress={async () => {
+              // Get current user id and seller id
+              const currentUserId = getAuth().currentUser?.uid;
+              const sellerId = product.user.id;
+              console.log('Message button pressed');
+              console.log('Current user id:', currentUserId);
+              console.log('Seller id:', sellerId);
+              if (!currentUserId || !sellerId) {
+                Alert.alert('Error', 'User information missing.');
+                return;
+              }
+              try {
+                const { getOrCreateChat } = await import('@/lib/getOrCreateChat');
+                const chat = await getOrCreateChat(currentUserId, sellerId);
+                console.log('Chat result:', chat);
+                if (chat && chat.id) {
+                  router.push(`/chat/${chat.id}`);
+                } else {
+                  console.log('Chat creation failed, chat:', chat);
+                  Alert.alert('Error', 'Could not start chat.');
+                }
+              } catch (e) {
+                console.log('Error in getOrCreateChat:', e);
+                Alert.alert('Error', 'Could not start chat.');
+              }
             }}
           >
             <Ionicons name="chatbubble-outline" size={20} color={ACCENT} />
