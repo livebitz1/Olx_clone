@@ -17,7 +17,7 @@ import {
   type ConfirmationResult,
   type FirebaseUser,
 } from '@/lib/firebase';
-import { supabase } from '@/lib/supabase';
+import { supabase, withAuth } from '@/lib/supabase';
 import type { User, AuthState } from '@/lib/types';
 
 // =============================================================================
@@ -40,91 +40,62 @@ const STORAGE_KEYS = {
 // =============================================================================
 // Save User to Supabase Database
 // =============================================================================
-const saveUserToDatabase = async (userData: {
-  id: string;
-  phone: string;
-  countryCode: string;
-  name?: string | null;
-  avatar?: string | null;
-  bio?: string | null;
-  location?: string | null;
-  email?: string | null;
-}): Promise<void> => {
+const saveUserToDatabase = async (user: any): Promise<void> => {
   try {
-    console.log('[Database] Saving user to Supabase:', userData.phone);
-
-    // Upsert user - insert if not exists, update if exists
-    // Only update basic auth fields, don't overwrite profile fields if they exist
+    if (!user?.uid) {
+      console.error('[Database] Cannot save user: UID is missing.');
+      return;
+    }
+    console.log('[Database] Saving user with UID:', user.uid);
+    console.log('[Database] Phone:', user.phoneNumber);
     const { data, error } = await supabase
       .from('users')
-      .upsert(
-        {
-          id: userData.id,
-          phone: userData.phone,
-          countryCode: userData.countryCode,
-          name: userData.name || null,
-          avatar: userData.avatar || null,
-          isVerified: true,
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          onConflict: 'phone', // If phone exists, update the record
-          ignoreDuplicates: false,
-        }
-      )
+      .upsert({
+        id: user.uid,
+        phone: user.phoneNumber?.replace('+', '') || '',
+        country_code: '91',
+        is_verified: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' })
       .select()
       .single();
-
     if (error) {
       console.error('[Database] Error saving user:', error.message);
-      // Don't throw - auth should still work even if DB save fails
     } else {
       console.log('[Database] ✓ User saved successfully:', data?.id);
     }
-  } catch (error) {
-    console.error('[Database] Exception saving user:', error);
+  } catch (err: any) {
+    console.error('[Database] Unexpected error:', err);
   }
 };
 
 // =============================================================================
 // Save Session to Supabase Database
 // =============================================================================
-const saveSessionToDatabase = async (sessionData: {
-  id: string;
-  userId: string;
-  token: string;
-  expiresAt: Date;
-}): Promise<void> => {
+const saveSessionToDatabase = async (user: any): Promise<void> => {
   try {
-    console.log('[Database] Saving session for user:', sessionData.userId);
-
-    // First, delete any existing sessions for this user to avoid token conflicts
-    // This ensures only one active session per user
-    const { error: deleteError } = await supabase
-      .from('sessions')
-      .delete()
-      .eq('userId', sessionData.userId);
-
-    if (deleteError) {
-      console.warn('[Database] Warning deleting old sessions:', deleteError.message);
-      // Continue anyway - the old session might not exist
+    if (!user?.uid) {
+      console.error('[Database] Cannot save session: UID is missing.');
+      return;
     }
-
-    // Now insert the new session
-    const { error: insertError } = await supabase.from('sessions').insert({
-      id: sessionData.id,
-      userId: sessionData.userId,
-      token: sessionData.token,
-      expiresAt: sessionData.expiresAt.toISOString(),
-    });
-
-    if (insertError) {
-      console.error('[Database] Error saving session:', insertError.message);
+    console.log('[Database] Saving session for:', user.uid);
+    const { error } = await supabase
+      .from('sessions')
+      .insert({
+        id: `${user.uid}_${Date.now()}`,
+        user_id: user.uid,
+        token: `firebase_token_${Date.now()}`,
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        created_at: new Date().toISOString(),
+      });
+    if (error) {
+      console.error('[Database] Error saving session:', error.message);
     } else {
       console.log('[Database] ✓ Session saved successfully');
     }
-  } catch (error) {
-    console.error('[Database] Exception saving session:', error);
+  } catch (err: any) {
+    console.error('[Database] Unexpected error:', err);
   }
 };
 
@@ -171,12 +142,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
         console.log('[Firebase Auth] Auth state changed:', firebaseUser?.uid || 'No user');
-
+        console.log('[DEBUG] Full user object:', JSON.stringify({
+          uid: firebaseUser?.uid,
+          phoneNumber: firebaseUser?.phoneNumber,
+          exists: !!firebaseUser
+        }));
         if (firebaseUser) {
-          // User is signed in - first create base user object
-          let appUser: User = {
+          const appUser: User = {
             id: firebaseUser.uid,
-            phone: firebaseUser.phoneNumber?.replace('+91', '') || '',
+            phone: firebaseUser.phoneNumber?.replace('+', '') || '',
             countryCode: '91',
             name: firebaseUser.displayName,
             avatar: firebaseUser.photoURL,
@@ -184,74 +158,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             location: null,
             email: null,
             isVerified: true,
-            createdAt: new Date(firebaseUser.metadata.creationTime || Date.now()),
+            createdAt: new Date(firebaseUser.metadata?.creationTime || Date.now()),
             updatedAt: new Date(),
           };
-
-          // Try to fetch additional profile data from Supabase
-          try {
-            const { data: dbUser, error } = await supabase
-              .from('users')
-              .select('*')
-              .eq('id', firebaseUser.uid)
-              .single();
-
-            if (dbUser && !error) {
-              // Merge database fields with Firebase data
-              appUser = {
-                ...appUser,
-                name: dbUser.name || appUser.name,
-                avatar: dbUser.avatar || appUser.avatar,
-                bio: dbUser.bio || null,
-                location: dbUser.location || null,
-                email: dbUser.email || null,
-                createdAt: new Date(dbUser.createdAt),
-                updatedAt: new Date(dbUser.updatedAt),
-              };
-              console.log('[Database] ✓ User profile loaded from database');
-            }
-          } catch (dbError) {
-            console.warn('[Database] Could not fetch user profile:', dbError);
-          }
-
-          // Get the ID token for session
-          const token = await firebaseUser.getIdToken();
-
-          // Save to AsyncStorage for persistence
-          await Promise.all([
-            AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(appUser)),
-            AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token),
-          ]);
-
-          // Save user to Supabase database
-          await saveUserToDatabase({
-            id: appUser.id,
-            phone: appUser.phone,
-            countryCode: appUser.countryCode,
-            name: appUser.name,
-            avatar: appUser.avatar,
-          });
-
-          const sessionData = {
-            id: `session_${firebaseUser.uid}_${Date.now()}`,
-            userId: firebaseUser.uid,
-            token,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-            createdAt: new Date(),
-          };
-
-          // Save session to Supabase database
-          await saveSessionToDatabase(sessionData);
-
           setUser(appUser);
-          setSession(sessionData);
+          await saveUserToDatabase(firebaseUser);
+          await saveSessionToDatabase(firebaseUser);
         } else {
-          // User is signed out
           setUser(null);
-          setSession(null);
-          await AsyncStorage.multiRemove([STORAGE_KEYS.USER, STORAGE_KEYS.TOKEN]);
         }
-
         setIsLoading(false);
       });
 
@@ -534,49 +449,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error('[Database] Error updating user:', error.message);
       } else {
-        console.log('[Database] ✓ User profile updated successfully');
+        console.log('[Database] ✓ User updated successfully');
+        setUser(updatedUser);
       }
-
-      setUser(updatedUser);
-    } catch (error) {
-      console.error('[Firebase Auth] Update user error:', error);
+    } catch (err) {
+      console.error('[Database] Unexpected error updating user:', err);
     }
   }, [user]);
 
   // =============================================================================
-  // Set reCAPTCHA Verifier (for mobile)
+  // Context Provider Value
   // =============================================================================
-  const setRecaptchaVerifier = useCallback((verifier: any) => {
-    if (Platform.OS !== 'web') {
-      mobileRecaptchaVerifierRef.current = verifier;
-      console.log('[Firebase Auth] Mobile reCAPTCHA verifier set');
-    }
-  }, []);
-
-  // =============================================================================
-  // Context Value
-  // =============================================================================
-  const value: AuthContextType = {
+  const value = React.useMemo(() => ({
     user,
     session,
     isLoading,
-    isAuthenticated: !!session && !!user,
     otpSent,
-    setOtpSent,
     sendOtp,
     verifyOtp,
     resendOtp,
     signOut,
     updateUser: updateUserProfile,
-    setRecaptchaVerifier,
-  };
+    setOtpSent,
+    setRecaptchaVerifier: (verifier: any) => {
+      if (Platform.OS === 'web') {
+        recaptchaVerifierRef.current = verifier;
+      } else {
+        mobileRecaptchaVerifierRef.current = verifier;
+      }
+    },
+    isAuthenticated: !!user,
+  }), [user, session, isLoading, otpSent, sendOtp, verifyOtp, resendOtp, signOut, updateUserProfile]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
-// =============================================================================
-// Hook
-// =============================================================================
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

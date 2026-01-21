@@ -40,5 +40,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+// Helper to add Authorization header to a Supabase request
+export const withAuth = (token: string) => ({
+  headers: { Authorization: `Bearer ${token}` },
+});
+
 // Export types for use throughout the app
 export type { User, Session } from '@supabase/supabase-js';

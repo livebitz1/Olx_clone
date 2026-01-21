@@ -628,7 +628,7 @@ export default function ProfileScreen() {
       const { data, error } = await supabase
         .from('posts')
         .select('*')
-        .eq('userId', user.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
