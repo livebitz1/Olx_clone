@@ -417,7 +417,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
 
     try {
-      const updatedUser = { ...user, ...data, updatedAt: new Date() };
+      const updatedUser = { ...user, ...data, updated_at: new Date() };
 
       // Update in AsyncStorage
       await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
@@ -442,7 +442,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           bio: updatedUser.bio,
           location: updatedUser.location,
           email: updatedUser.email,
-          updatedAt: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
 
