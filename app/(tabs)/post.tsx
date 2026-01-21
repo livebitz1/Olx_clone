@@ -151,12 +151,12 @@ export default function PostAdScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const uploadImagesToSupabase = async (imageUris: string[], userId: string) => {
+  const uploadImagesToSupabase = async (imageUris: string[], user_id: string) => {
     const uploadedUrls: string[] = [];
     for (let i = 0; i < imageUris.length; i++) {
       const uri = imageUris[i];
       const ext = uri.split('.').pop()?.split('?')[0] || 'jpg';
-      const fileName = `${userId}_${Date.now()}_${i}.${ext}`;
+      const fileName = `${user_id}_${Date.now()}_${i}.${ext}`;
       // Read file as base64
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
       const binary = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
@@ -183,13 +183,13 @@ export default function PostAdScreen() {
     }
     setIsSubmitting(true);
     // Upload images to Supabase Storage
-    const userId = user?.id;
-    if (!userId) {
+    const user_id = user?.id;
+    if (!user_id) {
       Alert.alert('Error', 'User not authenticated. Please log in again.');
       setIsSubmitting(false);
       return;
     }
-    const uploadedImageUrls = await uploadImagesToSupabase(formData.images, userId);
+    const uploadedImageUrls = await uploadImagesToSupabase(formData.images, user_id);
     if (uploadedImageUrls.length === 0) {
       Alert.alert('Error', 'Failed to upload images. Please try again.');
       setIsSubmitting(false);
@@ -204,8 +204,9 @@ export default function PostAdScreen() {
       location: formData.location,
       description: formData.description,
       images: uploadedImageUrls, // array of image URLs
-      userId: userId, // <-- Now set from auth context
+      user_id: user_id, // <-- Now set from auth context
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     });
     if (error) {
       console.error('Supabase insert error:', error);
