@@ -56,11 +56,11 @@ type Listing = {
 };
 
 // Stat Item Component
-const StatItem: React.FC<{ value: string | number; label: string }> = ({ value, label }) => (
-  <View style={styles.statItem}>
+const StatItem: React.FC<{ value: string | number; label: string; onPress?: () => void }> = ({ value, label, onPress }) => (
+  <TouchableOpacity style={styles.statItem} onPress={onPress} disabled={!onPress} activeOpacity={0.7}>
     <Text style={styles.statValue}>{value}</Text>
     <Text style={styles.statLabel}>{label}</Text>
-  </View>
+  </TouchableOpacity>
 );
 
 // Listing Grid Item Component
@@ -309,7 +309,14 @@ export default function UserProfileScreen() {
             <View style={styles.statsRow}>
               <StatItem value={stats.activeListings} label="Listings" />
               <StatItem value={stats.itemsSold} label="Sold" />
-              <StatItem value={followersCount} label="Followers" />
+              <StatItem
+                value={followersCount}
+                label="Followers"
+                onPress={() => router.push({
+                  pathname: '/profile/connections',
+                  params: { userId: profileUser.id, tab: 'followers', name: profileUser.name }
+                })}
+              />
             </View>
           </View>
 

@@ -68,3 +68,45 @@ export const getFollowingCount = async (userId: string) => {
 
     return { count: count || 0, error };
 };
+
+/**
+ * Get followers list
+ */
+export const getFollowers = async (userId: string) => {
+    const { data, error } = await supabase
+        .from('follows')
+        .select(`
+      follower:users!follows_follower_id_fkey (*)
+    `)
+        .eq('following_id', userId);
+
+    if (error) {
+        console.error('Error fetching followers:', error);
+        return { data: [], error };
+    }
+
+    // Flatten the response
+    const followers = data.map((item: any) => item.follower).filter(Boolean);
+    return { data: followers, error: null };
+};
+
+/**
+ * Get following list
+ */
+export const getFollowing = async (userId: string) => {
+    const { data, error } = await supabase
+        .from('follows')
+        .select(`
+      following:users!follows_following_id_fkey (*)
+    `)
+        .eq('follower_id', userId);
+
+    if (error) {
+        console.error('Error fetching following:', error);
+        return { data: [], error };
+    }
+
+    // Flatten the response
+    const following = data.map((item: any) => item.following).filter(Boolean);
+    return { data: following, error: null };
+};

@@ -62,8 +62,8 @@ const formatPhoneDisplay = (phone: string, countryCode: string): string => {
 };
 
 // Stat Item Component
-const StatItem: React.FC<{ value: string | number; label: string }> = ({ value, label }) => (
-  <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>
+const StatItem: React.FC<{ value: string | number; label: string; onPress?: () => void }> = ({ value, label, onPress }) => (
+  <TouchableOpacity style={styles.statItem} onPress={onPress} disabled={!onPress} activeOpacity={0.7}>
     <Text style={styles.statValue}>{value}</Text>
     <Text style={styles.statLabel}>{label}</Text>
   </TouchableOpacity>
@@ -825,8 +825,22 @@ export default function ProfileScreen() {
 
             <View style={styles.statsRow}>
               <StatItem value={activeListings.length} label="Listings" />
-              <StatItem value={stats.following} label="Following" />
-              <StatItem value={stats.followers} label="Followers" />
+              <StatItem
+                value={stats.following}
+                label="Following"
+                onPress={() => router.push({
+                  pathname: '/profile/connections',
+                  params: { userId: user.id, tab: 'following', name: user.name }
+                })}
+              />
+              <StatItem
+                value={stats.followers}
+                label="Followers"
+                onPress={() => router.push({
+                  pathname: '/profile/connections',
+                  params: { userId: user.id, tab: 'followers', name: user.name }
+                })}
+              />
             </View>
           </View>
 
