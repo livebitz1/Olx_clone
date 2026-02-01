@@ -267,7 +267,7 @@ export default function UserProfileScreen() {
             <View style={styles.statsRow}>
               <StatItem value={stats.activeListings} label="Listings" />
               <StatItem value={stats.itemsSold} label="Sold" />
-              <StatItem value="0" label="Reviews" />
+              <StatItem value="0" label="Followers" />
             </View>
           </View>
 

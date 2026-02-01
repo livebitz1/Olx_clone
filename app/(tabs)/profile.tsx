@@ -14,6 +14,7 @@ import {
   Platform,
   Switch,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -77,8 +78,8 @@ const ListingGridItem: React.FC<{
   const [showActions, setShowActions] = useState(false);
 
   // Use first image or default
-  const imageSource = listing.images && listing.images.length > 0 
-    ? { uri: listing.images[0] } 
+  const imageSource = listing.images && listing.images.length > 0
+    ? { uri: listing.images[0] }
     : DEFAULT_AVATAR;
 
   return (
@@ -196,7 +197,7 @@ const EditProfileModal: React.FC<{
           ext = uri.substring(uri.lastIndexOf('.') + 1).split('?')[0];
         }
         // Only allow safe extensions
-        if (!['jpg','jpeg','png','webp'].includes(ext.toLowerCase())) ext = 'jpg';
+        if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext.toLowerCase())) ext = 'jpg';
         const fileName = `${user.id}.${ext}`;
         // Delete old avatar if exists and is not default
         if (user.avatar && !user.avatar.includes('icon.png')) {
@@ -610,7 +611,7 @@ const QuickStatsCard: React.FC<{ listings: Listing[] }> = ({ listings }) => {
 export default function ProfileScreen() {
   const router = useRouter();
   const { signOut, user, updateUser } = useAuth();
-  
+
   // State
   const [listings, setListings] = useState<Listing[]>([]);
   const [isLoadingListings, setIsLoadingListings] = useState(true);
@@ -618,6 +619,18 @@ export default function ProfileScreen() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [activeTab, setActiveTab] = useState<'active' | 'sold'>('active');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    if (!user) return;
+    setRefreshing(true);
+    // Re-fetch listings
+    await fetchListings();
+    // Also re-fetch user profile data if we had a method for it, but fetchListings is the main dynamic content here.
+    // If we wanted to reload user data, we'd need to expose a reload function from useAuth or manually fetch.
+    // For now, refreshing listings is the primary action.
+    setRefreshing(false);
+  }, [fetchListings, user]);
 
   // Fetch user's listings from Supabase
   const fetchListings = useCallback(async () => {
@@ -670,7 +683,7 @@ export default function ProfileScreen() {
   // Handle logout
   const handleLogout = () => {
     setShowSettingsModal(false);
-    
+
     setTimeout(() => {
       Alert.alert(
         'Logout',
@@ -773,6 +786,9 @@ export default function ProfileScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
       >
         {/* Profile Header */}
         <View style={styles.header}>
@@ -797,7 +813,7 @@ export default function ProfileScreen() {
             <View style={styles.statsRow}>
               <StatItem value={activeListings.length} label="Listings" />
               <StatItem value={soldListings.length} label="Sold" />
-              <StatItem value={0} label="Reviews" />
+              <StatItem value={0} label="Followers" />
             </View>
           </View>
 
@@ -919,7 +935,7 @@ export default function ProfileScreen() {
                 : 'Your sold items will appear here'}
             </Text>
             {activeTab === 'active' && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.emptyStateButton}
                 onPress={() => router.push('/(tabs)/post')}
               >
@@ -1739,7 +1755,7 @@ const styles = StyleSheet.create({
   logoutFullButtonText: {
     fontSize: 15,
     fontWeight: '600',
- color: colors.danger,
+    color: colors.danger,
   },
   versionText: {
     fontSize: 12,
