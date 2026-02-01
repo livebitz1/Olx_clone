@@ -669,19 +669,20 @@ const QuickStats: React.FC = () => (
 // Promotional Banner Component
 const PromoBanner: React.FC = () => (
   <View style={styles.promoBanner}>
-    <View style={styles.promoContent}>
-      <View style={styles.promoIcon}>
-        <Ionicons name="gift" size={24} color={colors.white} />
+    <Image
+      source={{ uri: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2574&auto=format&fit=crop' }}
+      style={styles.bannerImage}
+      resizeMode="cover"
+    />
+    <View style={styles.bannerOverlay}>
+      <View style={styles.bannerContent}>
+        <Text style={styles.bannerTitle}>Discover Premium Deals</Text>
+        <Text style={styles.bannerSubtitle}>Find the best items in your neighborhood</Text>
       </View>
-      <View style={styles.promoText}>
-        <Text style={styles.promoTitle}>Special Offer!</Text>
-        <Text style={styles.promoSubtitle}>Get 20% off on your first purchase</Text>
-      </View>
+      <TouchableOpacity style={styles.bannerButton} activeOpacity={0.8}>
+        <Text style={styles.bannerButtonText}>Explore Now</Text>
+      </TouchableOpacity>
     </View>
-    <TouchableOpacity style={styles.promoButton}>
-      <Text style={styles.promoButtonText}>Claim Now</Text>
-      <Ionicons name="arrow-forward" size={14} color={colors.primary} />
-    </TouchableOpacity>
   </View>
 );
 
@@ -908,8 +909,7 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
-        {/* Quick Stats */}
-        <QuickStats />
+
 
         {/* Featured Listings Section */}
         <View style={styles.sectionContainer}>
@@ -1090,60 +1090,70 @@ const styles = StyleSheet.create({
   // Promo Banner
   promoBanner: {
     marginHorizontal: 16,
-    marginBottom: 20,
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  promoContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  promoIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  promoText: {
-    flex: 1,
-  },
-  promoTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.white,
-    marginBottom: 2,
-  },
-  promoSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '500',
-  },
-  promoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    marginBottom: 24,
+    height: 280,
     borderRadius: 20,
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+    backgroundColor: colors.primary, // Fallback
   },
-  promoButtonText: {
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.3)', // Overlay for better text readability
+  },
+  bannerContent: {
+    flex: 1,
+    marginRight: 16,
+  },
+  bannerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.white,
+    marginBottom: 6,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  bannerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  bannerButton: {
+    backgroundColor: colors.white,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 25,
+    shadowColor: 'black',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  bannerButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: colors.primary,
+    color: colors.text, // Dark text on white button
   },
 
   // Stats Container
