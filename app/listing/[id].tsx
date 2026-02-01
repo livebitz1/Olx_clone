@@ -224,7 +224,7 @@ export default function ProductDetails() {
           {/* Price and title section */}
           <View style={styles.priceSection}>
             <View>
-              <Text style={styles.price}>{product.price}</Text>
+              <Text style={styles.price}>₹{Number(product.price).toLocaleString()}</Text>
               <Text style={styles.title}>{product.title}</Text>
             </View>
           </View>

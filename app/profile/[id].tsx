@@ -84,7 +84,7 @@ const ListingGridItem: React.FC<{ listing: Listing; onPress: () => void }> = ({ 
         </View>
       )}
       <View style={styles.gridItemOverlay}>
-        <Text style={styles.gridPrice}>${listing.price}</Text>
+        <Text style={styles.gridPrice}>₹{Number(listing.price).toLocaleString()}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -277,9 +277,7 @@ export default function UserProfileScreen() {
         <Text style={styles.topBarTitle}>
           {profileUser.name || 'User Profile'}
         </Text>
-        <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView

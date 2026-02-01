@@ -369,7 +369,7 @@ export default function PostAdScreen() {
           <View style={styles.section}>
             <Text style={styles.label}>Price *</Text>
             <View style={[styles.priceInputContainer, focusedField === 'price' && styles.inputFocused, errors.price && styles.inputError]}>
-              <Text style={styles.currencySymbol}>$</Text>
+              <Text style={styles.currencySymbol}>₹</Text>
               <TextInput
                 style={styles.priceInput}
                 placeholder="0"
@@ -626,7 +626,7 @@ export default function PostAdScreen() {
               )}
               <View style={styles.previewDetails}>
                 <Text style={styles.previewPrice}>
-                  {formData.price ? `$${formData.price}` : '$0'}
+                  {formData.price ? `₹${formData.price}` : '₹0'}
                 </Text>
                 <Text style={styles.previewTitle}>
                   {formData.title || 'Product Title'}

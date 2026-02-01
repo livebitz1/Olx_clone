@@ -560,20 +560,42 @@ const CategoryCard: React.FC<{
 // Featured Listing Card Component
 const ListingCard: React.FC<{ listing: any; onPress: () => void }> = ({ listing, onPress }) => {
   const [isFavorited, setIsFavorited] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState(1); // Default square
 
   // Determine image source: if images[0] is a string, treat as remote URL
-  const imageSource = listing.images && listing.images[0]
-    ? (typeof listing.images[0] === 'string'
-      ? { uri: listing.images[0] }
-      : listing.images[0])
+  const firstImage = listing.images && listing.images[0];
+  const imageSource = firstImage
+    ? (typeof firstImage === 'string'
+      ? { uri: firstImage }
+      : firstImage)
     : null;
+
+  // New: Fetch image aspect ratio to show whole image and adjust card size
+  useEffect(() => {
+    if (typeof firstImage === 'string') {
+      Image.getSize(firstImage, (width, height) => {
+        if (width && height) {
+          setAspectRatio(width / height);
+        }
+      });
+    }
+  }, [firstImage]);
+
+  // Check if listing is new (less than 12 hours old)
+  const isNew = React.useMemo(() => {
+    if (!listing.created_at) return false;
+    const created = new Date(listing.created_at);
+    const now = new Date();
+    const diffInHours = (now.getTime() - created.getTime()) / (1000 * 60 * 60);
+    return diffInHours < 12;
+  }, [listing.created_at]);
 
   return (
     <TouchableOpacity style={styles.listingCard} onPress={onPress} activeOpacity={0.9}>
       {/* Product Image Container */}
-      <View style={styles.imageContainer}>
+      <View style={[styles.imageContainer, { aspectRatio }]}>
         {imageSource ? (
-          <Image source={imageSource} style={styles.productImage} resizeMode="cover" />
+          <Image source={imageSource} style={styles.productImage} resizeMode="contain" />
         ) : (
           <View style={[styles.productImage, styles.imagePlaceholder]}>
             <Ionicons name="image-outline" size={48} color={colors.textTertiary} />
@@ -595,10 +617,12 @@ const ListingCard: React.FC<{ listing: any; onPress: () => void }> = ({ listing,
       {/* Product Details */}
       <View style={styles.listingDetails}>
         <View style={styles.priceRow}>
-          <Text style={styles.priceText}>{listing.price}</Text>
-          <View style={styles.conditionBadge}>
-            <Text style={styles.conditionText}>New</Text>
-          </View>
+          <Text style={styles.priceText}>₹{Number(listing.price).toLocaleString()}</Text>
+          {isNew && (
+            <View style={styles.conditionBadge}>
+              <Text style={styles.conditionText}>New</Text>
+            </View>
+          )}
         </View>
 
         <Text style={styles.listingTitle} numberOfLines={2}>
@@ -1023,9 +1047,6 @@ export default function HomeScreen() {
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Categories</Text>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Text style={styles.seeAllLink}>See All</Text>
-            </TouchableOpacity>
           </View>
           <ScrollView
             horizontal
@@ -1056,9 +1077,6 @@ export default function HomeScreen() {
                 {selectedCategory ? 'Filtered Items' : 'Trending Now'}
               </Text>
             </View>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Text style={styles.seeAllLink}>View All →</Text>
-            </TouchableOpacity>
           </View>
 
           <View style={[
@@ -1449,7 +1467,6 @@ const styles = StyleSheet.create({
   imageContainer: {
     position: 'relative',
     width: '100%',
-    height: 200,
     backgroundColor: colors.background,
   },
   productImage: {
