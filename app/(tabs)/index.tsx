@@ -949,7 +949,7 @@ export default function HomeScreen() {
 
           </View>
 
-          {listings.length === 0 && !isLoading && (
+          {listings.length === 0 && !refreshing && (
             <View style={styles.emptyState}>
               <Ionicons name="search-outline" size={64} color={colors.textTertiary} />
               <Text style={styles.emptyStateText}>No listings found</Text>
