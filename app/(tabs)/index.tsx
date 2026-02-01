@@ -913,12 +913,25 @@ export default function HomeScreen() {
 
     // Category filter (use filters.category if set, otherwise selectedCategory for horizontal scroll selection)
     const activeCategory = filters.category || selectedCategory;
-    const matchesCategory =
-      !activeCategory ||
-      (activeCategory === '6' && p.title.toLowerCase().includes('car')) ||
-      (activeCategory === '3' && p.title.toLowerCase().includes('sofa')) ||
-      (activeCategory === '1' && p.title.toLowerCase().includes('smartphone')) ||
-      (activeCategory === '2' && !p.title.toLowerCase().includes('car') && !p.title.toLowerCase().includes('sofa'));
+    let matchesCategory = !activeCategory;
+
+    if (activeCategory) {
+      const categoryObj = categoriesData.find((c) => c.id === activeCategory);
+      if (categoryObj) {
+        // 1. Primary check: Database Category Column (Exact or Case-insensitive)
+        if (p.category && (p.category === categoryObj.name || p.category.toLowerCase() === categoryObj.name.toLowerCase())) {
+          matchesCategory = true;
+        }
+        // 2. Secondary check: Title keywords (Fallback for legacy data or if category is missing)
+        else if (!p.category) {
+          const title = p.title.toLowerCase();
+          if (activeCategory === '1' && (title.includes('electronic') || title.includes('phone') || title.includes('laptop'))) matchesCategory = true;
+          else if (activeCategory === '2' && (title.includes('shirt') || title.includes('fashion') || title.includes('cloth'))) matchesCategory = true;
+          else if (activeCategory === '3' && (title.includes('home') || title.includes('sofa') || title.includes('furniture'))) matchesCategory = true;
+          else if (activeCategory === '6' && (title.includes('car') || title.includes('vehicle'))) matchesCategory = true;
+        }
+      }
+    }
 
     // Price range filter
     const priceRange = getPriceRange(filters.priceRange);
@@ -1055,7 +1068,7 @@ export default function HomeScreen() {
               flexWrap: numColumns > 1 ? 'wrap' : 'nowrap'
             }
           ]}>
-            {listings.map((listing) => (
+            {filtered.map((listing) => (
               <View
                 key={listing.id}
                 style={[
@@ -1072,7 +1085,7 @@ export default function HomeScreen() {
 
           </View>
 
-          {listings.length === 0 && !refreshing && (
+          {filtered.length === 0 && !refreshing && (
             <View style={styles.emptyState}>
               <Ionicons name="search-outline" size={64} color={colors.textTertiary} />
               <Text style={styles.emptyStateText}>No listings found</Text>
