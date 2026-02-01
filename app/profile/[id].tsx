@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/OTPAuthContext';
 import { fetchConversations } from '@/lib/chat';
+import { checkIsFollowing, followUser, unfollowUser, getFollowersCount } from '@/lib/follow';
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_SIZE = (width - 48) / 3;
@@ -103,6 +104,9 @@ export default function UserProfileScreen() {
     activeListings: 0,
     itemsSold: 0,
   });
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
 
   useEffect(() => {
     if (userId) {
@@ -142,6 +146,14 @@ export default function UserProfileScreen() {
         activeListings: activeCount,
         itemsSold: soldCount,
       });
+
+      // 4. Fetch Follow Status and Count
+      if (currentUser && currentUser.id !== userId) {
+        const { isFollowing } = await checkIsFollowing(currentUser.id, userId);
+        setIsFollowing(isFollowing);
+      }
+      const { count: fCount } = await getFollowersCount(userId);
+      setFollowersCount(fCount || 0);
 
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -190,6 +202,36 @@ export default function UserProfileScreen() {
       } else {
         Alert.alert('No Items', 'This seller has no items to chat about.');
       }
+    }
+  };
+
+  const handleFollowToggle = async () => {
+    if (!currentUser) {
+      Alert.alert('Login Required', 'Please login to follow users');
+      return;
+    }
+    if (isFollowLoading) return;
+
+    // Optimistic update
+    const newStatus = !isFollowing;
+    setIsFollowing(newStatus);
+    setFollowersCount((prev) => (newStatus ? prev + 1 : Math.max(0, prev - 1)));
+    setIsFollowLoading(true);
+
+    try {
+      if (newStatus) {
+        await followUser(currentUser.id, userId);
+      } else {
+        await unfollowUser(currentUser.id, userId);
+      }
+    } catch (error) {
+      // Revert on error
+      setIsFollowing(!newStatus);
+      setFollowersCount((prev) => (!newStatus ? prev + 1 : Math.max(0, prev - 1)));
+      console.error('Error toggling follow:', error);
+      Alert.alert('Error', 'Failed to update follow status');
+    } finally {
+      setIsFollowLoading(false);
     }
   };
 
@@ -267,7 +309,7 @@ export default function UserProfileScreen() {
             <View style={styles.statsRow}>
               <StatItem value={stats.activeListings} label="Listings" />
               <StatItem value={stats.itemsSold} label="Sold" />
-              <StatItem value="0" label="Followers" />
+              <StatItem value={followersCount} label="Followers" />
             </View>
           </View>
 
@@ -310,10 +352,27 @@ export default function UserProfileScreen() {
                 {currentUser?.id === userId ? 'My Profile' : 'Chat'}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.followButton} activeOpacity={0.8}>
-              <Ionicons name="person-add-outline" size={18} color={colors.primary} />
-              <Text style={styles.followButtonText}>Follow</Text>
-            </TouchableOpacity>
+
+            {currentUser?.id !== userId && (
+              <TouchableOpacity
+                style={[
+                  styles.followButton,
+                  isFollowing && { backgroundColor: styles.container.backgroundColor, borderWidth: 1, borderColor: colors.primary }
+                ]}
+                onPress={handleFollowToggle}
+                activeOpacity={0.8}
+                disabled={isFollowLoading}
+              >
+                <Ionicons
+                  name={isFollowing ? "person-remove-outline" : "person-add-outline"}
+                  size={18}
+                  color={isFollowing ? colors.primary : colors.primary}
+                />
+                <Text style={styles.followButtonText}>
+                  {isFollowing ? 'Following' : 'Follow'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -342,7 +401,7 @@ export default function UserProfileScreen() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 

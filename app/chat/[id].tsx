@@ -170,7 +170,15 @@ export default function ChatScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
 
-        <View style={styles.headerContent}>
+        <TouchableOpacity
+          style={styles.headerContent}
+          onPress={() => {
+            if (otherUser && otherUser.id) {
+              router.push(`/profile/${otherUser.id}`);
+            }
+          }}
+          activeOpacity={0.7}
+        >
           <View style={styles.avatarContainer}>
             {otherUser.avatar ? (
               <Image source={{ uri: otherUser.avatar }} style={styles.avatar} />
@@ -188,7 +196,7 @@ export default function ChatScreen() {
               </Text>
             )}
           </View>
-        </View>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.headerButton}>
           <Ionicons name="ellipsis-vertical" size={20} color={colors.text} />

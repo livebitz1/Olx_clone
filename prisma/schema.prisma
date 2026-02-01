@@ -26,8 +26,22 @@ model User {
   buyer_chats  Chat[]    @relation("BuyerChats")
   seller_chats Chat[]    @relation("SellerChats")
   messages     Message[]
+  followers    Follows[] @relation("Following")
+  following    Follows[] @relation("Follower")
 
   @@map("users")
+}
+
+model Follows {
+  follower_id  String
+  following_id String
+  created_at   DateTime @default(now())
+
+  follower     User     @relation("Follower", fields: [follower_id], references: [id], onDelete: Cascade)
+  following    User     @relation("Following", fields: [following_id], references: [id], onDelete: Cascade)
+
+  @@id([follower_id, following_id])
+  @@map("follows")
 }
 
 model Posts {

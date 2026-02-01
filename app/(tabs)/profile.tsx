@@ -24,6 +24,7 @@ import { supabase } from '@/lib/supabase';
 import type { Listing, User } from '@/lib/types';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { getFollowersCount, getFollowingCount } from '@/lib/follow';
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_SIZE = (width - 48) / 3;
@@ -618,8 +619,9 @@ export default function ProfileScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [activeTab, setActiveTab] = useState<'active' | 'sold'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'following'>('active');
   const [refreshing, setRefreshing] = useState(false);
+  const [stats, setStats] = useState({ followers: 0, following: 0 });
 
   const onRefresh = useCallback(async () => {
     if (!user) return;
@@ -657,6 +659,17 @@ export default function ProfileScreen() {
       console.error('[Profile] Exception fetching listings:', error);
     } finally {
       setIsLoadingListings(false);
+    }
+
+    // Fetch stats
+    try {
+      if (user) {
+        const { count: followers } = await getFollowersCount(user.id);
+        const { count: following } = await getFollowingCount(user.id);
+        setStats({ followers: followers || 0, following: following || 0 });
+      }
+    } catch (e) {
+      console.error('Error fetching stats:', e);
     }
   }, [user]);
 
@@ -762,8 +775,8 @@ export default function ProfileScreen() {
   }
 
   const activeListings = listings.filter((l) => !l.isSold);
-  const soldListings = listings.filter((l) => l.isSold);
-  const displayedListings = activeTab === 'active' ? activeListings : soldListings;
+  // const soldListings = listings.filter((l) => l.isSold); // Removed as we are replacing it with Following
+  const displayedListings = activeTab === 'active' ? activeListings : []; // No following data yet
 
   // Avatar source
   const avatarSource = user.avatar ? { uri: user.avatar } : DEFAULT_AVATAR;
@@ -812,8 +825,8 @@ export default function ProfileScreen() {
 
             <View style={styles.statsRow}>
               <StatItem value={activeListings.length} label="Listings" />
-              <StatItem value={soldListings.length} label="Sold" />
-              <StatItem value={0} label="Followers" />
+              <StatItem value={stats.following} label="Following" />
+              <StatItem value={stats.followers} label="Followers" />
             </View>
           </View>
 
@@ -886,16 +899,16 @@ export default function ProfileScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'sold' && styles.tabActive]}
-            onPress={() => setActiveTab('sold')}
+            style={[styles.tab, activeTab === 'following' && styles.tabActive]}
+            onPress={() => setActiveTab('following')}
           >
             <Ionicons
-              name="checkmark-done-outline"
+              name="people-outline"
               size={20}
-              color={activeTab === 'sold' ? colors.primary : colors.textSecondary}
+              color={activeTab === 'following' ? colors.primary : colors.textSecondary}
             />
-            <Text style={[styles.tabText, activeTab === 'sold' && styles.tabTextActive]}>
-              Sold ({soldListings.length})
+            <Text style={[styles.tabText, activeTab === 'following' && styles.tabTextActive]}>
+              Following (0)
             </Text>
           </TouchableOpacity>
         </View>
@@ -921,18 +934,18 @@ export default function ProfileScreen() {
           <View style={styles.emptyState}>
             <View style={styles.emptyStateIcon}>
               <Ionicons
-                name={activeTab === 'active' ? 'cube-outline' : 'bag-check-outline'}
+                name={activeTab === 'active' ? 'cube-outline' : 'people-outline'}
                 size={48}
                 color={colors.textTertiary}
               />
             </View>
             <Text style={styles.emptyStateTitle}>
-              {activeTab === 'active' ? 'No active listings' : 'No sold items yet'}
+              {activeTab === 'active' ? 'No active listings' : 'You are not following anyone'}
             </Text>
             <Text style={styles.emptyStateSubtitle}>
               {activeTab === 'active'
                 ? 'Start selling by creating your first listing'
-                : 'Your sold items will appear here'}
+                : 'When you follow people, they will appear here'}
             </Text>
             {activeTab === 'active' && (
               <TouchableOpacity
