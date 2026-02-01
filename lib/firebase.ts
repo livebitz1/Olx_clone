@@ -14,11 +14,12 @@
 //    - Go to Authentication > Settings > Authorized domains
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { 
+import {
   getAuth,
   initializeAuth,
+  // @ts-ignore
   getReactNativePersistence,
-  signInWithPhoneNumber, 
+  signInWithPhoneNumber,
   RecaptchaVerifier,
   PhoneAuthProvider,
   signInWithCredential,
@@ -53,14 +54,14 @@ export const initializeFirebase = (): { app: FirebaseApp; auth: Auth } => {
     app = getApp();
     console.log('[Firebase] Using existing app');
   }
-  
+
   // Use initializeAuth with AsyncStorage persistence for React Native
   // This ensures auth state persists between app sessions
   try {
     authInstance = initializeAuth(app, {
       persistence: getReactNativePersistence(AsyncStorage)
     });
-    console.log('[Firebase] Auth initialized with AsyncStorage persistence');
+    console.log('[Firebase] Auth initialized with persistence');
   } catch (error: any) {
     // If auth is already initialized, get the existing instance
     if (error.code === 'auth/already-initialized') {
@@ -70,7 +71,7 @@ export const initializeFirebase = (): { app: FirebaseApp; auth: Auth } => {
       throw error;
     }
   }
-  
+
   return { app, auth: authInstance };
 };
 
@@ -95,12 +96,12 @@ export const isFirebaseConfigured = (): boolean => {
 export const formatPhoneNumber = (phone: string, countryCode: string = '+91'): string => {
   // Remove all non-digit characters
   const cleanPhone = phone.replace(/\D/g, '');
-  
+
   // If already has country code, return as-is with + prefix
   if (cleanPhone.length > 10) {
     return `+${cleanPhone}`;
   }
-  
+
   // Add country code
   return `${countryCode}${cleanPhone}`;
 };

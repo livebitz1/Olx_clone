@@ -14,8 +14,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/OTPAuthContext';
 import { getAuth } from 'firebase/auth';
+import { getOrCreateChat } from '@/lib/chat';
 
 const { width } = Dimensions.get('window');
 const IMAGE_HEIGHT = 360;
@@ -69,9 +70,6 @@ export default function ProductDetails() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session && session.user) {
         setSessionUserId(session.user.id);
-        console.log('Direct Supabase user id:', session.user.id);
-      } else {
-        console.log('No Supabase session found.');
       }
     });
   }, []);
@@ -109,17 +107,8 @@ export default function ProductDetails() {
     );
   }
 
-  // Debug logs for ownership (after product is loaded)
-  console.log('Auth user:', user);
-  console.log('Auth user id:', user?.id);
-  console.log('Post user_id:', product.user_id);
-  console.log('Post user.id:', product.user?.id);
-
   // Owner check: use users.id from users table
   const isOwner = currentUserDbId && product.user_id && currentUserDbId === product.user_id;
-  console.log('Current user db id:', currentUserDbId);
-  console.log('Post user_id:', product.user_id);
-  console.log('isOwner:', isOwner);
 
   // Seller info
   const sellerName = product.user?.name || 'Unknown';
@@ -127,9 +116,7 @@ export default function ProductDetails() {
 
   // Edit functionality
   const handleEdit = () => {
-    // Navigate to an edit screen or open a modal (for now, just show an alert)
     Alert.alert('Edit Listing', 'Edit functionality coming soon!');
-    // Example: router.push(`/edit-listing/${id}`);
   };
 
   // Delete functionality
@@ -175,7 +162,7 @@ export default function ProductDetails() {
         >
           <Ionicons name="arrow-back" size={24} color={TEXT} />
         </Pressable>
-        
+
         <View style={styles.headerActions}>
           <Pressable
             onPress={() => Alert.alert('Share', 'Share functionality')}
@@ -187,10 +174,10 @@ export default function ProductDetails() {
             onPress={() => setIsFavorited(!isFavorited)}
             style={styles.headerButton}
           >
-            <Ionicons 
-              name={isFavorited ? "heart" : "heart-outline"} 
-              size={22} 
-              color={isFavorited ? "#EF4444" : TEXT} 
+            <Ionicons
+              name={isFavorited ? "heart" : "heart-outline"}
+              size={22}
+              color={isFavorited ? "#EF4444" : TEXT}
             />
           </Pressable>
         </View>
@@ -320,7 +307,7 @@ export default function ProductDetails() {
                     </View>
                   </View>
                 </View>
-                
+
                 <Pressable
                   style={styles.viewProfileButton}
                   onPress={() => {
@@ -370,36 +357,29 @@ export default function ProductDetails() {
           <Pressable
             style={[styles.actionButton, styles.chatButton]}
             onPress={async () => {
-              // Get current user id and seller id
-              const currentUserId = getAuth().currentUser?.uid;
-              const sellerId = product.user.id;
-              console.log('Message button pressed');
-              console.log('Current user id:', currentUserId);
-              console.log('Seller id:', sellerId);
-              if (!currentUserId || !sellerId) {
-                Alert.alert('Error', 'User information missing.');
+              if (!user) {
+                Alert.alert('Please log in', 'You need to be logged in to message the seller.');
                 return;
               }
-              try {
-                const { getOrCreateChat } = await import('@/lib/getOrCreateChat');
-                const chat = await getOrCreateChat(currentUserId, sellerId);
-                console.log('Chat result:', chat);
-                if (chat && chat.id) {
-                  router.push(`/chat/${chat.id}`);
-                } else {
-                  console.log('Chat creation failed, chat:', chat);
-                  Alert.alert('Error', 'Could not start chat.');
-                }
-              } catch (e) {
-                console.log('Error in getOrCreateChat:', e);
-                Alert.alert('Error', 'Could not start chat.');
+              if (user.id === product.user.id) {
+                Alert.alert('Error', 'You cannot message yourself.');
+                return;
+              }
+
+              const { chatId, error } = await getOrCreateChat(user.id, product.user.id, id);
+              if (error) {
+                Alert.alert('Error', 'Failed to start conversation.');
+                return;
+              }
+              if (chatId) {
+                router.push(`/chat/${chatId}`);
               }
             }}
           >
             <Ionicons name="chatbubble-outline" size={20} color={ACCENT} />
             <Text style={styles.chatText}>Message</Text>
           </Pressable>
-          
+
           <Pressable
             style={[styles.actionButton, styles.callButton]}
             onPress={() => {

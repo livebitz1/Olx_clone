@@ -50,17 +50,17 @@ const OTP_LENGTH = 6; // Firebase uses 6-digit OTP
 export default function LoginScreen() {
   const router = useRouter();
   const { sendOtp, verifyOtp, resendOtp, isAuthenticated, isLoading: authLoading, setRecaptchaVerifier } = useAuth();
-  
+
   // Phone input state
   const [selectedCountry, setSelectedCountry] = useState<Country>(COUNTRIES[0]);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [phoneError, setPhoneError] = useState('');
   const [isSendingOTP, setIsSendingOTP] = useState(false);
-  
+
   // reCAPTCHA verifier ref (for mobile)
   const recaptchaVerifierRef = useRef<any>(null);
-  
+
   // OTP state
   const [showOTPScreen, setShowOTPScreen] = useState(false);
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
@@ -68,10 +68,10 @@ export default function LoginScreen() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [showSuccessLoader, setShowSuccessLoader] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
-  
+
   // Refs for OTP inputs
   const otpInputs = useRef<(TextInput | null)[]>([]);
-  
+
   // Animation
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -146,16 +146,16 @@ export default function LoginScreen() {
 
     setIsSendingOTP(true);
     const cleanNumber = getCleanPhoneNumber();
-    
+
     const result = await sendOtp(cleanNumber);
-    
+
     setIsSendingOTP(false);
-    
+
     if (!result.success) {
       setPhoneError(result.error || 'Failed to send OTP');
       return;
     }
-    
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -220,15 +220,15 @@ export default function LoginScreen() {
     setOtpError('');
     const cleanNumber = getCleanPhoneNumber();
     const enteredOTP = otp.join('');
-    
+
     const result = await verifyOtp(cleanNumber, enteredOTP);
-    
+
     setIsVerifying(false);
-    
+
     if (result.success) {
       // Show professional success loader
       setShowSuccessLoader(true);
-      
+
       // Animate progress bar
       loaderProgressAnim.setValue(0);
       Animated.timing(loaderProgressAnim, {
@@ -236,7 +236,7 @@ export default function LoginScreen() {
         duration: 2000,
         useNativeDriver: false,
       }).start();
-      
+
       // Wait for user data to be saved to Supabase and then navigate
       setTimeout(() => {
         // Smooth navigation with fade animation
@@ -260,10 +260,10 @@ export default function LoginScreen() {
 
     setOtp(Array(OTP_LENGTH).fill(''));
     setOtpError('');
-    
+
     const cleanNumber = getCleanPhoneNumber();
     const result = await resendOtp(cleanNumber);
-    
+
     if (result.success) {
       setResendTimer(30);
       otpInputs.current[0]?.focus();
@@ -289,7 +289,7 @@ export default function LoginScreen() {
   };
 
   const renderPhoneScreen = () => (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.content,
         { opacity: fadeAnim, transform: [{ translateX: slideAnim }] },
@@ -321,7 +321,7 @@ export default function LoginScreen() {
         <View style={styles.inputSection}>
           <Text style={styles.label}>Phone Number</Text>
           <View style={styles.phoneInputContainer}>
-            <Pressable 
+            <Pressable
               style={styles.countrySelector}
               onPress={() => setCountryModalVisible(true)}
             >
@@ -393,7 +393,7 @@ export default function LoginScreen() {
   );
 
   const renderOTPScreen = () => (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.content,
         { opacity: fadeAnim, transform: [{ translateX: slideAnim }] },
@@ -501,7 +501,7 @@ export default function LoginScreen() {
   // Success Loader Component
   const renderSuccessLoader = () => (
     <View style={styles.loaderOverlay}>
-      <Animated.View 
+      <Animated.View
         style={[
           styles.loaderContainer,
           {
@@ -580,13 +580,15 @@ export default function LoginScreen() {
         <FirebaseRecaptchaVerifierModal
           ref={recaptchaVerifierRef}
           firebaseConfig={firebaseConfig as any}
-          attemptInvisibleVerification
+          attemptInvisibleVerification={true}
+          title=""
+          cancelLabel=""
         />
       )}
-      
+
       {/* Success Loader Overlay */}
       {showSuccessLoader && renderSuccessLoader()}
-      
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -1044,7 +1046,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginRight: 8,
   },
-  
+
   // Success Loader Styles
   loaderOverlay: {
     position: 'absolute',

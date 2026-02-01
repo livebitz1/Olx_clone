@@ -19,7 +19,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
-import { useAuth } from '@/contexts/OTPAuthContext';
 
 // Get screen dimensions with responsive breakpoints
 const { width, height } = Dimensions.get('window');
@@ -688,7 +687,6 @@ const PromoBanner: React.FC = () => (
 // Main Home Screen Component
 export default function HomeScreen() {
   const router = useRouter();
-  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -820,14 +818,10 @@ export default function HomeScreen() {
       <View style={styles.topNav}>
         <View style={styles.navLeft}>
           <TouchableOpacity style={styles.menuButton}>
-            {user && user.avatar ? (
-              <Image source={{ uri: user.avatar }} style={{ width: 36, height: 36, borderRadius: 18 }} />
-            ) : (
-              <Ionicons name="person-circle" size={36} color={colors.text} />
-            )}
+            <Ionicons name="menu" size={24} color={colors.text} />
           </TouchableOpacity>
           <View>
-            <Text style={styles.navGreeting}>Hello, {user?.name || 'User'} 👋</Text>
+            <Text style={styles.navGreeting}>Hello, User 👋</Text>
             <View style={styles.locationRow}>
               <Ionicons name="location" size={14} color={colors.primary} />
               <Text style={styles.navLocation}>Jaipur, India</Text>

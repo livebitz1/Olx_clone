@@ -79,3 +79,27 @@ export interface UpdateUserInput {
   name?: string;
   avatar?: string;
 }
+
+// ===========================================
+// Chat Types
+// ===========================================
+export interface Message {
+  id: string;
+  chat_id: string;
+  sender_id: string;
+  text: string;
+  created_at: string;
+}
+
+export interface Chat {
+  id: string;
+  buyer_id: string;
+  seller_id: string;
+  listing_id: string | null;
+  created_at: string;
+  updated_at: string;
+  buyer?: User;
+  seller?: User;
+  listing?: Listing;
+  messages?: Message[];
+}

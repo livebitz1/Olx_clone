@@ -203,23 +203,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await recaptchaVerifierRef.current.render();
         return recaptchaVerifierRef.current;
       } else {
-        // Mobile platform: Use FirebaseRecaptchaVerifierModal from expo-firebase-recaptcha
-        const { FirebaseRecaptchaVerifierModal } = await import('expo-firebase-recaptcha');
-        const firebaseConfig = {
-          apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
-          authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
-          projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || '',
-        };
-
-        // Create a verifier using FirebaseRecaptchaVerifierModal
-        // Note: The modal component should be rendered in the UI
-        // For now, we'll create a verifier that will be used when the modal is shown
-        const verifier = new FirebaseRecaptchaVerifierModal({
-          firebaseConfig: firebaseConfig as any,
-          attemptInvisibleVerification: true,
-        }) as any;
-
-        return verifier;
+        // Mobile platform: The verifier is passed from the UI component (FirebaseRecaptchaVerifierModal)
+        // We don't create it programmatically here.
+        return null;
       }
     } catch (error) {
       console.error('[Firebase Auth] reCAPTCHA setup error:', error);
@@ -256,7 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Setup reCAPTCHA verifier for all platforms
       let appVerifier: any = null;
-      
+
       if (Platform.OS === 'web') {
         // Web: Use standard RecaptchaVerifier
         appVerifier = recaptchaVerifierRef.current;
@@ -270,13 +256,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Mobile: Use the verifier passed from the UI component (FirebaseRecaptchaVerifierModal)
         // or use mobileRecaptchaVerifierRef if set
         appVerifier = mobileRecaptchaVerifierRef.current;
-        
+
         if (!appVerifier) {
           // If no verifier is set, return error asking to retry
           // The login screen should render FirebaseRecaptchaVerifierModal and set it
-          return { 
-            success: false, 
-            error: 'reCAPTCHA not ready. Please wait a moment and try again.' 
+          return {
+            success: false,
+            error: 'reCAPTCHA not ready. Please wait a moment and try again.'
           };
         }
       }
