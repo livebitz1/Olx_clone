@@ -764,9 +764,13 @@ const PromoBanner: React.FC = () => {
   );
 };
 
+import { useAuth } from '@/contexts/OTPAuthContext';
+
 // Main Home Screen Component
 export default function HomeScreen() {
   const router = useRouter();
+  const { user: authUser } = useAuth();
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -779,6 +783,36 @@ export default function HomeScreen() {
   const [listings, setListings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (authUser) {
+      // The authUser from OTPAuthContext might already have the avatar!
+      if (authUser.avatar) {
+        setUserProfile(authUser);
+      } else {
+        fetchUserProfile();
+      }
+    }
+  }, [authUser]);
+
+  const fetchUserProfile = async () => {
+    if (!authUser) return;
+    console.log('[Home] Fetching profile for:', authUser.id);
+    const { data, error } = await supabase
+      .from('users')
+      .select('avatar, name')
+      .eq('id', authUser.id)
+      .single();
+
+    if (error) {
+      console.error('[Home] Error fetching profile:', error);
+    }
+
+    if (data) {
+      console.log('[Home] Profile data fetched:', data);
+      setUserProfile(data);
+    }
+  };
 
   useEffect(() => {
     // Subscribe to realtime changes in the posts table
@@ -828,7 +862,8 @@ export default function HomeScreen() {
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
     fetchListings();
-  }, []);
+    if (authUser) fetchUserProfile();
+  }, [authUser]);
 
   const handleCategoryPress = (categoryId: string) => {
     setSelectedCategory(selectedCategory === categoryId ? null : categoryId);
@@ -906,11 +941,21 @@ export default function HomeScreen() {
       {/* Top Navigation Bar */}
       <View style={styles.topNav}>
         <View style={styles.navLeft}>
-          <TouchableOpacity style={styles.menuButton}>
-            <Ionicons name="menu" size={24} color={colors.text} />
+          <TouchableOpacity style={styles.profileButton} onPress={() => router.push('/(tabs)/profile')}>
+            {userProfile?.avatar ? (
+              <Image
+                source={{ uri: userProfile.avatar }}
+                style={styles.profileImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.profileImage, styles.profilePlaceholder]}>
+                <Ionicons name="person" size={20} color={colors.textSecondary} />
+              </View>
+            )}
           </TouchableOpacity>
           <View>
-            <Text style={styles.navGreeting}>Hello, User 👋</Text>
+            <Text style={styles.navGreeting}>Hello, {userProfile?.name?.split(' ')[0] || 'User'} 👋</Text>
             <View style={styles.locationRow}>
               <Ionicons name="location" size={14} color={colors.primary} />
               <Text style={styles.navLocation}>Jaipur, India</Text>
@@ -1069,10 +1114,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  menuButton: {
-    width: 40,
-    height: 40,
+  profileButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    padding: 2, // Space for border
+  },
+  profileImage: {
+    width: '100%',
+    height: '100%',
     borderRadius: 20,
+  },
+  profilePlaceholder: {
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',

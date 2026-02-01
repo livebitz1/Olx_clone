@@ -6,7 +6,6 @@ import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { AuthProvider as MainAuthProvider } from '@/contexts/AuthContext';
 import { AuthProvider, useAuth } from '@/contexts/OTPAuthContext';
 
 export const unstable_settings = {
@@ -49,27 +48,25 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <MainAuthProvider>
-      <AuthProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <NavigationGuard>
-            <Stack>
-              <Stack.Screen name="auth/login" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
-              <Stack.Screen name="listing/[id]" options={{ headerShown: false }} />
-              <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
-              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-            </Stack>
-          </NavigationGuard>
-          <StatusBar style="auto" />
-          {/* reCAPTCHA container for Firebase Phone Auth on web */}
-          {Platform.OS === 'web' && (
-            <View nativeID="recaptcha-container" style={styles.recaptchaContainer} />
-          )}
-        </ThemeProvider>
-      </AuthProvider>
-    </MainAuthProvider>
+    <AuthProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <NavigationGuard>
+          <Stack>
+            <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="listing/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          </Stack>
+        </NavigationGuard>
+        <StatusBar style="auto" />
+        {/* reCAPTCHA container for Firebase Phone Auth on web */}
+        {Platform.OS === 'web' && (
+          <View nativeID="recaptcha-container" style={styles.recaptchaContainer} />
+        )}
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 
