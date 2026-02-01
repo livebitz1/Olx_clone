@@ -14,6 +14,7 @@ import {
   Animated,
   Modal,
   Pressable,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -522,26 +523,26 @@ const CategoryCard: React.FC<{
   isSelected: boolean;
 }> = ({ category, onPress, isSelected }) => {
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={[
         styles.categoryCard,
         isSelected && styles.categoryCardSelected
-      ]} 
-      onPress={onPress} 
+      ]}
+      onPress={onPress}
       activeOpacity={0.7}
     >
-      <View 
+      <View
         style={[
-          styles.categoryIconContainer, 
-          { 
+          styles.categoryIconContainer,
+          {
             backgroundColor: isSelected ? category.color : colors.white,
             borderColor: isSelected ? category.color : colors.border,
           }
         ]}
       >
-        <Ionicons 
+        <Ionicons
           name={category.icon as any}
-          size={getResponsiveValue(24, 26, 28)} 
+          size={getResponsiveValue(24, 26, 28)}
           color={isSelected ? colors.white : category.color}
         />
       </View>
@@ -562,8 +563,8 @@ const ListingCard: React.FC<{ listing: any; onPress: () => void }> = ({ listing,
   // Determine image source: if images[0] is a string, treat as remote URL
   const imageSource = listing.images && listing.images[0]
     ? (typeof listing.images[0] === 'string'
-        ? { uri: listing.images[0] }
-        : listing.images[0])
+      ? { uri: listing.images[0] }
+      : listing.images[0])
     : null;
 
   return (
@@ -578,14 +579,14 @@ const ListingCard: React.FC<{ listing: any; onPress: () => void }> = ({ listing,
           </View>
         )}
         {/* Favorite Button */}
-        <TouchableOpacity 
-          style={styles.favoriteButton} 
+        <TouchableOpacity
+          style={styles.favoriteButton}
           activeOpacity={0.7}
           onPress={() => setIsFavorited(!isFavorited)}
         >
-          <Ionicons 
-            name={isFavorited ? "heart" : "heart-outline"} 
-            size={20} 
+          <Ionicons
+            name={isFavorited ? "heart" : "heart-outline"}
+            size={20}
             color={isFavorited ? colors.danger : colors.white}
           />
         </TouchableOpacity>
@@ -646,7 +647,7 @@ const QuickStats: React.FC = () => (
       <Text style={styles.statValue}>2.4k+</Text>
       <Text style={styles.statLabel}>Active Listings</Text>
     </View>
-    
+
     <View style={styles.statCard}>
       <View style={styles.statIconContainer}>
         <Ionicons name="people" size={20} color={colors.success} />
@@ -654,7 +655,7 @@ const QuickStats: React.FC = () => (
       <Text style={styles.statValue}>15k+</Text>
       <Text style={styles.statLabel}>Happy Users</Text>
     </View>
-    
+
     <View style={styles.statCard}>
       <View style={styles.statIconContainer}>
         <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
@@ -698,6 +699,7 @@ export default function HomeScreen() {
   });
   const [listings, setListings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     // Subscribe to realtime changes in the posts table
@@ -723,7 +725,9 @@ export default function HomeScreen() {
 
   // Move fetchListings outside useEffect so it can be called from realtime handler
   const fetchListings = async () => {
-    setIsLoading(true);
+    // Only set full loading state if not refreshing
+    if (!refreshing) setIsLoading(true);
+
     const { data, error } = await supabase
       .from('posts')
       .select('*, user:users(id, name, avatar)')
@@ -739,7 +743,13 @@ export default function HomeScreen() {
       })));
     }
     setIsLoading(false);
+    setRefreshing(false);
   };
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    fetchListings();
+  }, []);
 
   const handleCategoryPress = (categoryId: string) => {
     setSelectedCategory(selectedCategory === categoryId ? null : categoryId);
@@ -843,6 +853,16 @@ export default function HomeScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]} // Android
+            tintColor={colors.primary} // iOS
+            title="Pull to refresh" // iOS
+            titleColor={colors.textSecondary}
+          />
+        }
       >
         {/* Search Bar */}
         <SearchBar
@@ -907,14 +927,14 @@ export default function HomeScreen() {
 
           <View style={[
             styles.listingsGrid,
-            { 
+            {
               flexDirection: numColumns === 1 ? 'column' : 'row',
               flexWrap: numColumns > 1 ? 'wrap' : 'nowrap'
             }
           ]}>
             {listings.map((listing) => (
-              <View 
-                key={listing.id} 
+              <View
+                key={listing.id}
                 style={[
                   styles.listingCardWrapper,
                   { width: numColumns === 1 ? '100%' : `${100 / numColumns}%` }

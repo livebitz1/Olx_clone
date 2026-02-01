@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,15 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/OTPAuthContext';
+import { fetchConversations } from '@/lib/chat';
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_SIZE = (width - 48) / 3;
@@ -31,114 +35,23 @@ const colors = {
   danger: '#EF4444',
 };
 
-// User type
+// Types
 type User = {
   id: string;
-  username: string;
-  fullName: string;
-  avatar: any;
-  bio: string;
-  location: string;
-  joinedDate: string;
-  isVerified: boolean;
-  stats: {
-    activeListings: number;
-    itemsSold: number;
-    rating: number;
-    reviews: number;
-  };
-  listings: Listing[];
+  name: string;
+  avatar: string | null;
+  bio: string | null;
+  location: string | null;
+  created_at: string;
+  is_verified: boolean;
 };
 
 type Listing = {
   id: string;
   title: string;
-  price: string;
-  image: any;
-  isSold: boolean;
-};
-
-// Mock users database
-const USERS: Record<string, User> = {
-  alexjohnson: {
-    id: 'seller1',
-    username: 'alexjohnson',
-    fullName: 'Alex Johnson',
-    avatar: require('../../assets/images/partial-react-logo.png'),
-    bio: 'Car enthusiast & gadget lover. Quality guaranteed! 🚗',
-    location: 'Austin, TX',
-    joinedDate: 'January 2022',
-    isVerified: true,
-    stats: {
-      activeListings: 12,
-      itemsSold: 56,
-      rating: 4.8,
-      reviews: 78,
-    },
-    listings: [
-      { id: 'l1', title: 'Compact Car', price: '$7,500', image: require('../../assets/images/react-logo.png'), isSold: false },
-      { id: 's2', title: 'Bike Helmet', price: '$45', image: require('../../assets/images/icon.png'), isSold: false },
-      { id: 's3', title: 'Tool Set', price: '$80', image: require('../../assets/images/partial-react-logo.png'), isSold: false },
-    ],
-  },
-  mayalee: {
-    id: 'seller2',
-    username: 'mayalee',
-    fullName: 'Maya Lee',
-    avatar: require('../../assets/images/icon.png'),
-    bio: 'Home decor specialist. Unique finds at great prices! ✨',
-    location: 'New York, NY',
-    joinedDate: 'June 2021',
-    isVerified: true,
-    stats: {
-      activeListings: 8,
-      itemsSold: 89,
-      rating: 4.9,
-      reviews: 124,
-    },
-    listings: [
-      { id: 'l2', title: 'Modern Sofa', price: '$250', image: require('../../assets/images/icon.png'), isSold: false },
-      { id: 'm2', title: 'Table Lamp', price: '$35', image: require('../../assets/images/react-logo.png'), isSold: false },
-    ],
-  },
-  samcarter: {
-    id: 'seller3',
-    username: 'samcarter',
-    fullName: 'Sam Carter',
-    avatar: require('../../assets/images/react-logo.png'),
-    bio: 'Tech gadgets & electronics. All items tested! 📱',
-    location: 'Seattle, WA',
-    joinedDate: 'March 2023',
-    isVerified: false,
-    stats: {
-      activeListings: 5,
-      itemsSold: 23,
-      rating: 4.5,
-      reviews: 31,
-    },
-    listings: [
-      { id: 'l3', title: 'Smartphone', price: '$420', image: require('../../assets/images/partial-react-logo.png'), isSold: false },
-    ],
-  },
-};
-
-// Default user if not found
-const DEFAULT_USER: User = {
-  id: 'default',
-  username: 'seller',
-  fullName: 'Seller',
-  avatar: require('../../assets/images/react-logo.png'),
-  bio: 'Marketplace seller',
-  location: 'Unknown',
-  joinedDate: 'Recently',
-  isVerified: false,
-  stats: {
-    activeListings: 0,
-    itemsSold: 0,
-    rating: 0,
-    reviews: 0,
-  },
-  listings: [],
+  price: number;
+  images: string[];
+  is_sold: boolean;
 };
 
 // Stat Item Component
@@ -149,44 +62,94 @@ const StatItem: React.FC<{ value: string | number; label: string }> = ({ value, 
   </View>
 );
 
-// Rating Stars Component
-const RatingStars: React.FC<{ rating: number }> = ({ rating }) => (
-  <View style={styles.ratingContainer}>
-    {[1, 2, 3, 4, 5].map((star) => (
-      <Ionicons
-        key={star}
-        name={star <= Math.floor(rating) ? 'star' : star - 0.5 <= rating ? 'star-half' : 'star-outline'}
-        size={14}
-        color={colors.warning}
-      />
-    ))}
-    <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
-  </View>
-);
-
 // Listing Grid Item Component
-const ListingGridItem: React.FC<{ listing: Listing; onPress: () => void }> = ({ listing, onPress }) => (
-  <TouchableOpacity style={styles.gridItem} onPress={onPress} activeOpacity={0.8}>
-    <Image source={listing.image} style={styles.gridImage} />
-    {listing.isSold && (
-      <View style={styles.soldBadge}>
-        <Text style={styles.soldBadgeText}>SOLD</Text>
+const ListingGridItem: React.FC<{ listing: Listing; onPress: () => void }> = ({ listing, onPress }) => {
+  const imageSource = listing.images && listing.images.length > 0
+    ? { uri: listing.images[0] }
+    : null;
+
+  return (
+    <TouchableOpacity style={styles.gridItem} onPress={onPress} activeOpacity={0.8}>
+      {imageSource ? (
+        <Image source={imageSource} style={styles.gridImage} />
+      ) : (
+        <View style={[styles.gridImage, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
+          <Ionicons name="image-outline" size={24} color="#94A3B8" />
+        </View>
+      )}
+      {listing.is_sold && (
+        <View style={styles.soldBadge}>
+          <Text style={styles.soldBadgeText}>SOLD</Text>
+        </View>
+      )}
+      <View style={styles.gridItemOverlay}>
+        <Text style={styles.gridPrice}>${listing.price}</Text>
       </View>
-    )}
-    <View style={styles.gridItemOverlay}>
-      <Text style={styles.gridPrice}>{listing.price}</Text>
-    </View>
-  </TouchableOpacity>
-);
+    </TouchableOpacity>
+  );
+};
 
 // Main User Profile Screen
 export default function UserProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const userId = (params as any).id ?? 'default';
+  const userId = (params as any).id;
+  const { user: currentUser } = useAuth();
 
-  // Find user by id or username
-  const user = USERS[userId] ?? Object.values(USERS).find((u) => u.id === userId) ?? DEFAULT_USER;
+  const [profileUser, setProfileUser] = useState<User | null>(null);
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState({
+    activeListings: 0,
+    itemsSold: 0,
+  });
+
+  useEffect(() => {
+    if (userId) {
+      fetchProfileData();
+    }
+  }, [userId]);
+
+  const fetchProfileData = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Fetch User Details
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (userError) throw userError;
+      setProfileUser(userData);
+
+      // 2. Fetch User Listings
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (postsError) throw postsError;
+
+      const userListings = postsData || [];
+      setListings(userListings);
+
+      // 3. Calculate Stats
+      const soldCount = userListings.filter((l: any) => l.is_sold).length;
+      const activeCount = userListings.length - soldCount;
+      setStats({
+        activeListings: activeCount,
+        itemsSold: soldCount,
+      });
+
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      Alert.alert('Error', 'Failed to load user profile');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -196,15 +159,67 @@ export default function UserProfileScreen() {
     }
   };
 
-  const handleChat = () => {
-    router.push(`/chat/${user.id}`);
+  const handleChat = async () => {
+    if (!currentUser) {
+      Alert.alert('Login Required', 'Please login to chat with seller');
+      return;
+    }
+    if (currentUser.id === userId) {
+      // Chatting with self
+      return;
+    }
+
+    // Attempt to find an existing chat with this user
+    // Since our chat model requires a listing_id, detailed "General Chat" isn't fully supported yet
+    // Strategy: Find *any* chat with this user or prompt to go to a listing
+    // For now, simpler approach: if they have listings, redirect to their first active listing
+
+    // Check for existing conversations
+    const { data: convs } = await fetchConversations(currentUser.id);
+    const existingChat = convs?.find((c: any) =>
+      (c.buyer_id === currentUser.id && c.seller_id === userId) ||
+      (c.buyer_id === userId && c.seller_id === currentUser.id)
+    );
+
+    if (existingChat) {
+      router.push(`/chat/${existingChat.id}`);
+    } else {
+      // If no existing chat, and user has active listings, suggest visiting a listing
+      if (listings.length > 0) {
+        Alert.alert('Start Chat', 'Please select one of the seller\'s items to start a conversation.');
+      } else {
+        Alert.alert('No Items', 'This seller has no items to chat about.');
+      }
+    }
   };
 
   const handleListingPress = (listingId: string) => {
     router.push(`/listing/${listingId}`);
   };
 
-  const activeListings = user.listings.filter((l) => !l.isSold);
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!profileUser) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>User not found</Text>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <Text style={{ color: colors.primary, marginTop: 10 }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const joinDate = new Date(profileUser.created_at).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -217,7 +232,9 @@ export default function UserProfileScreen() {
             <Ionicons name="arrow-back" size={20} color={colors.primary} />
           </View>
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{user.username}</Text>
+        <Text style={styles.topBarTitle}>
+          {profileUser.name || 'User Profile'}
+        </Text>
         <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
           <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
         </TouchableOpacity>
@@ -233,8 +250,14 @@ export default function UserProfileScreen() {
           {/* Avatar & Stats Row */}
           <View style={styles.avatarStatsRow}>
             <View style={styles.avatarWrapper}>
-              <Image source={user.avatar} style={styles.avatar} />
-              {user.isVerified && (
+              {profileUser.avatar ? (
+                <Image source={{ uri: profileUser.avatar }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
+                  <Ionicons name="person" size={40} color="#94A3B8" />
+                </View>
+              )}
+              {profileUser.is_verified && (
                 <View style={styles.verifiedBadge}>
                   <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
                 </View>
@@ -242,33 +265,50 @@ export default function UserProfileScreen() {
             </View>
 
             <View style={styles.statsRow}>
-              <StatItem value={user.stats.activeListings} label="Listings" />
-              <StatItem value={user.stats.itemsSold} label="Sold" />
-              <StatItem value={user.stats.reviews} label="Reviews" />
+              <StatItem value={stats.activeListings} label="Listings" />
+              <StatItem value={stats.itemsSold} label="Sold" />
+              <StatItem value="0" label="Reviews" />
             </View>
           </View>
 
           {/* User Info */}
           <View style={styles.userInfo}>
-            <Text style={styles.fullName}>{user.fullName}</Text>
-            <Text style={styles.username}>@{user.username}</Text>
+            <Text style={styles.fullName}>{profileUser.name || 'Olx User'}</Text>
+            {/* Username logic if needed, falling back to name or placeholder */}
+            <Text style={styles.username}>@{profileUser.name?.replace(/\s+/g, '').toLowerCase() || 'user'}</Text>
 
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-              <Text style={styles.location}>{user.location}</Text>
-              <Text style={styles.joinedDate}>• Joined {user.joinedDate}</Text>
+              <Text style={styles.location}>{profileUser.location || 'Location not set'}</Text>
+              <Text style={styles.joinedDate}>• Joined {joinDate}</Text>
             </View>
 
-            <Text style={styles.bio}>{user.bio}</Text>
+            {profileUser.bio && <Text style={styles.bio}>{profileUser.bio}</Text>}
 
-            <RatingStars rating={user.stats.rating} />
+            {/* Rating Placeholder (Real app would fetch from reviews table) */}
+            <View style={styles.ratingContainer}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Ionicons key={star} name="star-outline" size={14} color={colors.warning} />
+              ))}
+              <Text style={styles.ratingText}>No ratings yet</Text>
+            </View>
           </View>
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.chatButton} onPress={handleChat} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={[
+                styles.chatButton,
+                currentUser?.id === userId && { backgroundColor: colors.textSecondary }
+              ]}
+              onPress={handleChat}
+              activeOpacity={0.8}
+              disabled={currentUser?.id === userId}
+            >
               <Ionicons name="chatbubble-outline" size={18} color={colors.white} />
-              <Text style={styles.chatButtonText}>Chat</Text>
+              <Text style={styles.chatButtonText}>
+                {currentUser?.id === userId ? 'My Profile' : 'Chat'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.followButton} activeOpacity={0.8}>
               <Ionicons name="person-add-outline" size={18} color={colors.primary} />
@@ -280,12 +320,12 @@ export default function UserProfileScreen() {
         {/* Listings Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Listings</Text>
-          <Text style={styles.sectionCount}>{activeListings.length}</Text>
+          <Text style={styles.sectionCount}>{stats.activeListings}</Text>
         </View>
 
-        {activeListings.length > 0 ? (
+        {listings.length > 0 ? (
           <View style={styles.listingsGrid}>
-            {activeListings.map((listing) => (
+            {listings.map((listing) => (
               <ListingGridItem
                 key={listing.id}
                 listing={listing}
@@ -310,6 +350,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginBottom: 20,
   },
   topBar: {
     flexDirection: 'row',

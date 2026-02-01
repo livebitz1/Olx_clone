@@ -108,7 +108,7 @@ export default function PostAdScreen() {
     }
 
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+
     if (!permissionResult.granted) {
       Alert.alert('Permission Required', 'Please allow access to your photo library to add images.');
       return;
@@ -193,6 +193,14 @@ export default function PostAdScreen() {
     return uploadedUrls;
   };
 
+  // Simple UUID v4 generator
+  const generateUUID = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       Alert.alert('Missing Information', 'Please fill in all required fields.');
@@ -214,6 +222,7 @@ export default function PostAdScreen() {
     }
     // Save post to Supabase
     const { error } = await supabase.from('posts').insert({
+      id: generateUUID(), // Generate UUID client-side
       title: formData.title,
       price: formData.price,
       category: formData.category,
@@ -269,7 +278,7 @@ export default function PostAdScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
@@ -282,7 +291,7 @@ export default function PostAdScreen() {
           </Pressable>
         </View>
 
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -292,16 +301,16 @@ export default function PostAdScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Photos</Text>
             <Text style={styles.sectionSubtitle}>Add up to 8 photos. First image will be the cover.</Text>
-            
-            <ScrollView 
-              horizontal 
+
+            <ScrollView
+              horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.imageScrollView}
               contentContainerStyle={styles.imageContainer}
             >
               {/* Add Image Button */}
-              <Pressable 
-                style={[styles.addImageButton, errors.images && styles.addImageButtonError]} 
+              <Pressable
+                style={[styles.addImageButton, errors.images && styles.addImageButtonError]}
                 onPress={pickImage}
               >
                 <View style={styles.addImageContent}>
@@ -320,7 +329,7 @@ export default function PostAdScreen() {
                       <Text style={styles.coverText}>Cover</Text>
                     </View>
                   )}
-                  <Pressable 
+                  <Pressable
                     style={styles.removeImageButton}
                     onPress={() => removeImage(index)}
                   >
@@ -378,17 +387,17 @@ export default function PostAdScreen() {
           {/* Category */}
           <View style={styles.section}>
             <Text style={styles.label}>Category *</Text>
-            <Pressable 
+            <Pressable
               style={[styles.selectButton, errors.category && styles.inputError]}
               onPress={() => setCategoryModalVisible(true)}
             >
               <View style={styles.selectContent}>
                 {formData.category ? (
                   <>
-                    <Ionicons 
-                      name={CATEGORIES.find(c => c.name === formData.category)?.icon as any || 'grid-outline'} 
-                      size={20} 
-                      color="#1e293b" 
+                    <Ionicons
+                      name={CATEGORIES.find(c => c.name === formData.category)?.icon as any || 'grid-outline'}
+                      size={20}
+                      color="#1e293b"
                     />
                     <Text style={styles.selectText}>{formData.category}</Text>
                   </>
@@ -404,7 +413,7 @@ export default function PostAdScreen() {
           {/* Condition */}
           <View style={styles.section}>
             <Text style={styles.label}>Condition</Text>
-            <Pressable 
+            <Pressable
               style={styles.selectButton}
               onPress={() => setConditionModalVisible(true)}
             >
@@ -442,7 +451,7 @@ export default function PostAdScreen() {
             <Text style={styles.label}>Description *</Text>
             <TextInput
               style={[
-                styles.input, 
+                styles.input,
                 styles.textArea,
                 focusedField === 'description' && styles.inputFocused,
                 errors.description && styles.inputError,
@@ -493,7 +502,7 @@ export default function PostAdScreen() {
 
         {/* Submit Button */}
         <View style={styles.submitContainer}>
-          <Pressable 
+          <Pressable
             style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             disabled={isSubmitting}
@@ -605,9 +614,9 @@ export default function PostAdScreen() {
             </View>
             <ScrollView style={styles.previewContent}>
               {formData.images.length > 0 ? (
-                <Image 
-                  source={{ uri: formData.images[0] }} 
-                  style={styles.previewImage} 
+                <Image
+                  source={{ uri: formData.images[0] }}
+                  style={styles.previewImage}
                 />
               ) : (
                 <View style={styles.previewImagePlaceholder}>
