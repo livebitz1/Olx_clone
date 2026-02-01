@@ -15,6 +15,7 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -83,7 +84,6 @@ const categoriesData = [
   { id: '5', name: 'Books', icon: 'book-outline', color: '#8B5CF6' },
   { id: '6', name: 'Vehicles', icon: 'car-outline', color: '#EF4444' },
   { id: '7', name: 'Toys', icon: 'game-controller-outline', color: '#F97316' },
-  { id: '8', name: 'More', icon: 'apps-outline', color: '#6366F1' },
 ];
 
 // Price range options for filter
@@ -535,8 +535,9 @@ const CategoryCard: React.FC<{
         style={[
           styles.categoryIconContainer,
           {
-            backgroundColor: isSelected ? category.color : colors.white,
-            borderColor: isSelected ? category.color : colors.border,
+            backgroundColor: isSelected ? category.color : `${category.color}15`, // 15 = ~8% opacity
+            borderColor: isSelected ? category.color : `${category.color}30`,
+            borderWidth: isSelected ? 0 : 1,
           }
         ]}
       >
@@ -548,7 +549,7 @@ const CategoryCard: React.FC<{
       </View>
       <Text style={[
         styles.categoryName,
-        isSelected && { color: category.color }
+        isSelected && { color: category.color, fontWeight: '700' }
       ]}>
         {category.name}
       </Text>
@@ -666,25 +667,102 @@ const QuickStats: React.FC = () => (
   </View>
 );
 
-// Promotional Banner Component
-const PromoBanner: React.FC = () => (
-  <View style={styles.promoBanner}>
-    <Image
-      source={{ uri: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2574&auto=format&fit=crop' }}
-      style={styles.bannerImage}
-      resizeMode="cover"
-    />
-    <View style={styles.bannerOverlay}>
-      <View style={styles.bannerContent}>
-        <Text style={styles.bannerTitle}>Discover Premium Deals</Text>
-        <Text style={styles.bannerSubtitle}>Find the best items in your neighborhood</Text>
+// Banner Data
+const BANNER_DATA = [
+  {
+    id: '1',
+    title: 'Discover Premium Deals',
+    subtitle: 'Find the best items in your neighborhood',
+    image: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2574&auto=format&fit=crop',
+    buttonText: 'Explore Now',
+  },
+  {
+    id: '2',
+    title: 'Sell & Earn Money',
+    subtitle: 'Turn your unused items into cash today',
+    image: 'https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?q=80&w=2574&auto=format&fit=crop',
+    buttonText: 'Start Selling',
+  },
+  {
+    id: '3',
+    title: 'Upgrade Your Tech',
+    subtitle: 'Latest gadgets at unbeatable prices',
+    image: 'https://images.unsplash.com/photo-1498049381929-2818839580bf?q=80&w=2574&auto=format&fit=crop',
+    buttonText: 'View Gadgets',
+  },
+  {
+    id: '4',
+    title: 'Fashion Trends',
+    subtitle: 'Refresh your wardrobe for the season',
+    image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=2574&auto=format&fit=crop',
+    buttonText: 'Shop Fashion',
+  },
+];
+
+// Promotional Banner Carousel Component
+const PromoBanner: React.FC = () => {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const onViewableItemsChanged = React.useRef(({ viewableItems }: any) => {
+    if (viewableItems.length > 0) {
+      setActiveIndex(viewableItems[0].index || 0);
+    }
+  }).current;
+
+  const viewabilityConfig = React.useRef({
+    viewAreaCoveragePercentThreshold: 50,
+  }).current;
+
+  const renderItem = ({ item }: { item: { id: string; title: string; subtitle: string; image: string; buttonText: string } }) => (
+    <View style={{ width: width, paddingHorizontal: 16 }}>
+      <View style={styles.promoBanner}>
+        <Image
+          source={{ uri: item.image }}
+          style={styles.bannerImage}
+          resizeMode="cover"
+        />
+        <View style={styles.bannerOverlay}>
+          <View style={styles.bannerContent}>
+            <Text style={styles.bannerTitle}>{item.title}</Text>
+            <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>
+          </View>
+          <TouchableOpacity style={styles.bannerButton} activeOpacity={0.8}>
+            <Text style={styles.bannerButtonText}>{item.buttonText}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-      <TouchableOpacity style={styles.bannerButton} activeOpacity={0.8}>
-        <Text style={styles.bannerButtonText}>Explore Now</Text>
-      </TouchableOpacity>
     </View>
-  </View>
-);
+  );
+
+  return (
+    <View style={styles.bannerContainer}>
+      <FlatList
+        data={BANNER_DATA}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        scrollEventThrottle={32}
+      />
+
+      {/* Pagination Dots */}
+      <View style={styles.paginationContainer}>
+        {BANNER_DATA.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.paginationDot,
+              activeIndex === index ? styles.activeDot : styles.inactiveDot,
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+};
 
 // Main Home Screen Component
 export default function HomeScreen() {
@@ -1088,9 +1166,11 @@ const styles = StyleSheet.create({
   },
 
   // Promo Banner
-  promoBanner: {
-    marginHorizontal: 16,
+  bannerContainer: {
     marginBottom: 24,
+  },
+  promoBanner: {
+    // marginHorizontal: 16, // Moved to renderItem padding
     height: 280,
     borderRadius: 20,
     overflow: 'hidden',
@@ -1154,6 +1234,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: colors.text, // Dark text on white button
+  },
+
+  // Pagination
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12, // Space between banner and dots
+    gap: 8,
+  },
+  paginationDot: {
+    height: 8,
+    borderRadius: 4,
+  },
+  activeDot: {
+    width: 24,
+    backgroundColor: colors.primary,
+  },
+  inactiveDot: {
+    width: 8,
+    backgroundColor: colors.border,
   },
 
   // Stats Container
@@ -1228,6 +1329,7 @@ const styles = StyleSheet.create({
   },
   categoriesContent: {
     paddingHorizontal: 16,
+    paddingVertical: 12,
     gap: 12,
   },
   categoryCard: {
@@ -1238,18 +1340,13 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.05 }],
   },
   categoryIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+    width: 68,
+    height: 68,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
-    borderWidth: 2,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    // Removed default border & shadow for modern look, handled dynamically
   },
   categoryName: {
     fontSize: 12,
