@@ -71,16 +71,31 @@ export const getChat = async (chatId: string) => {
  * Get an existing chat or create a new one
  */
 export const getOrCreateChat = async (buyerId: string, sellerId: string, listingId: string) => {
-  // First, check if a chat already exists
+  // First, check if a chat already exists between these two users (in either direction)
+  // We want to reuse the conversation regardless of who was the original buyer/seller
   const { data: existingChat, error: fetchError } = await supabase
     .from('chats')
     .select('id')
-    .eq('buyer_id', buyerId)
-    .eq('seller_id', sellerId)
-    .eq('listing_id', listingId)
-    .single();
+    .or(`and(buyer_id.eq.${buyerId},seller_id.eq.${sellerId}),and(buyer_id.eq.${sellerId},seller_id.eq.${buyerId})`)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (existingChat && existingChat.id) {
+    // Chat exists! Optionally update the listing_id to reflect the latest item of interest
+    // and bump the updated_at timestamp.
+    const { error: updateError } = await supabase
+      .from('chats')
+      .update({
+        listing_id: listingId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', existingChat.id);
+
+    if (updateError) {
+      console.error('Error updating existing chat:', updateError);
+    }
+
     return { chatId: existingChat.id, error: null };
   }
 
