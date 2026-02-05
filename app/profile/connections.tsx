@@ -190,7 +190,7 @@ export default function ConnectionsScreen() {
 
     const handleUserPress = (targetUserId: string) => {
         if (targetUserId === currentUser?.id) {
-            router.push('/(tabs)/profile');
+            router.push('/profile');
         } else {
             router.push(`/profile/${targetUserId}`);
         }

@@ -978,7 +978,7 @@ export default function HomeScreen() {
       {/* Top Navigation Bar */}
       <View style={styles.topNav}>
         <View style={styles.navLeft}>
-          <TouchableOpacity style={styles.profileButton} onPress={() => router.push('/(tabs)/profile')}>
+          <TouchableOpacity style={styles.profileButton} onPress={() => router.push('/profile')}>
             {userProfile?.avatar ? (
               <Image
                 source={{ uri: userProfile.avatar }}
@@ -1008,7 +1008,7 @@ export default function HomeScreen() {
             <View style={styles.notificationDot} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.navIconButton}>
-            <Ionicons name="chatbubble-outline" size={22} color={colors.text} />
+            <Ionicons name="heart-outline" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1118,6 +1118,15 @@ export default function HomeScreen() {
         {/* Bottom Spacing */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
+
+      {/* Floating Action Button (FAB) */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.push('/(tabs)/post')}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={32} color="#FFF" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -1584,6 +1593,23 @@ const styles = StyleSheet.create({
 
   // Bottom Spacing
   bottomSpacing: {
-    height: 40,
+    height: 100,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FF4D00',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    zIndex: 1000,
   },
 });

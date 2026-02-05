@@ -17,7 +17,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/OTPAuthContext';
 import { supabase } from '@/lib/supabase';
@@ -49,7 +49,7 @@ const colors = {
 };
 
 // Default avatar for users without profile picture
-const DEFAULT_AVATAR = require('../../assets/images/icon.png');
+const DEFAULT_AVATAR = require('../assets/images/icon.png');
 
 // Format date to "Month Year"
 const formatJoinDate = (date: Date): string => {
@@ -783,9 +783,21 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
+
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <Text style={styles.topBarTitle}>Profile</Text>
+        <View style={styles.topBarLeft}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.push('/(tabs)')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.topBarTitle}>Profile</Text>
+        </View>
+
         <TouchableOpacity
           style={styles.settingsButton}
           onPress={() => setShowSettingsModal(true)}
@@ -1013,11 +1025,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  topBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   topBarTitle: {
     fontSize: 22,
