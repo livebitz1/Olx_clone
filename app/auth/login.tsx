@@ -45,7 +45,7 @@ const COUNTRIES: Country[] = [
   { code: 'MX', name: 'Mexico', dialCode: '+52', flag: '🇲🇽' },
 ];
 
-const OTP_LENGTH = 6; // User requested 6-digit OTP
+const OTP_LENGTH = 6; // Updated back to 6-digit as requested
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -279,7 +279,7 @@ export default function LoginScreen() {
         }).start(() => {
           router.replace('/(tabs)');
         });
-      }, 4000); // Show success animation for 4 seconds as requested
+      }, 3000); // Show success animation for 3 seconds only
     } else {
       setOtpError(result.error || 'Invalid OTP. Please try again.');
       setOtp(Array(OTP_LENGTH).fill(''));

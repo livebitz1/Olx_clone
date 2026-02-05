@@ -148,6 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           exists: !!firebaseUser
         }));
         if (firebaseUser) {
+          console.log('[FirebaseAuthContext] ✅ Session found for UID:', firebaseUser.uid);
           const appUser: User = {
             id: firebaseUser.uid,
             phone: firebaseUser.phoneNumber?.replace('+', '') || '',
@@ -162,12 +163,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             updatedAt: new Date(),
           };
           setUser(appUser);
+          console.log('[FirebaseAuthContext] ✓ User state set in context');
           await saveUserToDatabase(firebaseUser);
           await saveSessionToDatabase(firebaseUser);
         } else {
+          console.log('[FirebaseAuthContext] ℹ️ No active session found');
           setUser(null);
         }
         setIsLoading(false);
+        console.log('[FirebaseAuthContext] 🏁 Auth initialization complete (isLoading=false)');
       });
 
       return () => unsubscribe();

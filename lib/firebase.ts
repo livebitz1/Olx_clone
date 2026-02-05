@@ -19,6 +19,7 @@ import {
   initializeAuth,
   // @ts-ignore
   getReactNativePersistence,
+  browserLocalPersistence,
   signInWithPhoneNumber,
   RecaptchaVerifier,
   PhoneAuthProvider,
@@ -55,19 +56,22 @@ export const initializeFirebase = (): { app: FirebaseApp; auth: Auth } => {
     console.log('[Firebase] Using existing app');
   }
 
-  // Use initializeAuth with AsyncStorage persistence for React Native
-  // This ensures auth state persists between app sessions
+  // Use initializeAuth with correct persistence for each platform
   try {
+    const persistence = Platform.OS === 'web'
+      ? browserLocalPersistence
+      : getReactNativePersistence(AsyncStorage);
+
     authInstance = initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage)
+      persistence: persistence
     });
-    console.log('[Firebase] Auth initialized with persistence');
+    console.log(`[Firebase] Auth initialized with persistence (${Platform.OS})`);
   } catch (error: any) {
-    // If auth is already initialized, get the existing instance
     if (error.code === 'auth/already-initialized') {
       authInstance = getAuth(app);
-      console.log('[Firebase] Auth already initialized, using existing instance');
+      console.log('[Firebase] Auth already initialized');
     } else {
+      console.error('[Firebase] Auth initialization failed:', error);
       throw error;
     }
   }
@@ -116,8 +120,8 @@ export const validatePhone = (phone: string): boolean => {
 
 // OTP Configuration
 export const OTP_CONFIG = {
-  length: 6, // User requested 6-digit OTP
-  timeoutSeconds: 60, // Auto-retrieval timeout
+  length: 6, // Updated back to 6-digit as requested
+  timeoutSeconds: 60,
   maxAttempts: 3,
 };
 

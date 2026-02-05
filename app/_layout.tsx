@@ -1,22 +1,28 @@
+import React, { useEffect, useRef } from 'react';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef } from 'react';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/contexts/OTPAuthContext';
+import CustomSplashScreen from '@/components/CustomSplashScreen';
+import * as SplashScreen from 'expo-splash-screen';
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
   initialRouteName: 'auth/login',
 };
 
 // Navigation guard component
-function NavigationGuard({ children }: { children: React.ReactNode }) {
+function NavigationGuard({ children, isBooting }: { children: React.ReactNode, isBooting: boolean }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const isInitialLoad = useRef(true);
   const segments = useSegments();
 
   useEffect(() => {
@@ -26,24 +32,21 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
 
     if (!isAuthenticated && !inAuthGroup) {
       // User is not authenticated and not on auth screen - redirect to login
+      console.log('[NavigationGuard] 🔒 Not authenticated, redirecting to login');
       router.replace('/auth/login');
-    } else if (isAuthenticated && inAuthGroup) {
-      // Only auto-redirect if it's the initial load (e.g. app just opened)
-      // Otherwise, let the LoginScreen handle its own success animation/transition
-      if (isInitialLoad.current) {
-        router.replace('/(tabs)');
-      }
+    } else if (isAuthenticated && inAuthGroup && isBooting) {
+      // If we are booting (splash screen still active) and authenticated,
+      // perform a silent background redirect to the home screen.
+      console.log('[NavigationGuard] 🚀 Boot redirect: Authenticated, moving to home underneath splash');
+      router.replace('/(tabs)');
     }
+  }, [isAuthenticated, isLoading, segments, isBooting]);
 
-    // Once we've handled the first valid auth state check, it's no longer initial load
-    isInitialLoad.current = false;
-  }, [isAuthenticated, isLoading, segments]);
-
-  // Show loading spinner while checking auth state
+  // Show loading spinner while checking auth state (hidden under splash)
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color="#FF4D00" />
       </View>
     );
   }
@@ -53,27 +56,43 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const [showSplash, setShowSplash] = React.useState(true);
+
+  useEffect(() => {
+    // Hide the native splash screen as soon as we can
+    SplashScreen.hideAsync();
+  }, []);
 
   return (
-    <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <NavigationGuard>
-          <Stack>
-            <Stack.Screen name="auth/login" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
-            <Stack.Screen name="listing/[id]" options={{ headerShown: false }} />
-            <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
-        </NavigationGuard>
-        <StatusBar style="auto" />
-        {/* reCAPTCHA container for Firebase Phone Auth on web */}
-        {Platform.OS === 'web' && (
-          <View nativeID="recaptcha-container" style={styles.recaptchaContainer} />
-        )}
-      </ThemeProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          {/* Main App Stack - runs in background during splash */}
+          <NavigationGuard isBooting={showSplash}>
+            <Stack>
+              <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="listing/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            </Stack>
+          </NavigationGuard>
+
+          {/* Custom Splash Screen Overlay */}
+          {showSplash && (
+            <CustomSplashScreen onAnimationComplete={() => setShowSplash(false)} />
+          )}
+
+          <StatusBar style="auto" />
+
+          {/* reCAPTCHA container for Firebase Phone Auth on web */}
+          {Platform.OS === 'web' && (
+            <View nativeID="recaptcha-container" style={styles.recaptchaContainer} />
+          )}
+        </ThemeProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
