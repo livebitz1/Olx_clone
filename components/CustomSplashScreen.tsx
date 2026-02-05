@@ -18,6 +18,7 @@ interface CustomSplashScreenProps {
 export default function CustomSplashScreen({ onAnimationComplete }: CustomSplashScreenProps) {
     const fadeAnim = useRef(new Animated.Value(1)).current;
     const spinAnim = useRef(new Animated.Value(0)).current;
+    const taglineFadeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         // Rotation animation for the loading spinner
@@ -29,6 +30,14 @@ export default function CustomSplashScreen({ onAnimationComplete }: CustomSplash
                 useNativeDriver: true,
             })
         ).start();
+
+        // Tagline fade in animation
+        Animated.timing(taglineFadeAnim, {
+            toValue: 1,
+            duration: 1000,
+            delay: 500,
+            useNativeDriver: true,
+        }).start();
 
         // After a delay, fade out the splash screen
         const timer = setTimeout(() => {
@@ -66,6 +75,9 @@ export default function CustomSplashScreen({ onAnimationComplete }: CustomSplash
             {/* Center Logo/Text */}
             <View style={styles.logoContainer}>
                 <Text style={styles.logoText}>Abhibecho</Text>
+                <Animated.Text style={[styles.taglineText, { opacity: taglineFadeAnim }]}>
+                    anything anywhere
+                </Animated.Text>
             </View>
 
             {/* Bottom Loading Indicator */}
@@ -138,6 +150,14 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         color: '#FFFFFF',
         letterSpacing: -1,
+    },
+    taglineText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: 'rgba(255, 255, 255, 0.9)',
+        marginTop: -4,
+        letterSpacing: 1.2,
+        textTransform: 'lowercase',
     },
     loaderContainer: {
         position: 'absolute',
