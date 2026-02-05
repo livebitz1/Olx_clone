@@ -1,0 +1,165 @@
+================================================================================
+OLX CLONE - END-TO-END PROJECT DOCUMENTATION
+================================================================================
+
+OVERVIEW
+--------------------------------------------------------------------------------
+This project is a high-performance OLX Clone built with React Native (Expo), 
+designed to provide a seamless peer-to-peer marketplace experience. It features 
+real-time messaging, secure phone authentication, and a robust following system.
+
+ARCHITECTURE & TECH STACK
+--------------------------------------------------------------------------------
+
+Frontend:
+- Framework: React Native with Expo SDK 54.
+- Navigation: Expo Router (Type-safe, file-based routing).
+- Icons & UI: Ionicons, Lucide-React-Native, and Custom Vanilla CSS StyleSheets
+  for premium aesthetics.
+- State Management: React Context API (OTPAuthContext) for authentication and 
+  user sessions.
+
+Backend & Database:
+- Database: PostgreSQL hosted on Supabase.
+- ORM: Prisma used for schema design and local type generation.
+- Storage: Supabase Buckets for hosting listing images and user avatars.
+- Real-time: Supabase Real-time subscriptions for instant messaging.
+
+Authentication:
+- Provider: Firebase Authentication.
+- Method: Phone Number OTP with Invisible reCAPTCHA for a frictionless login.
+
+--------------------------------------------------------------------------------
+
+PROJECT STRUCTURE
+--------------------------------------------------------------------------------
+
+├── app/                  # Routing & Screens
+│   ├── (tabs)/           # Main tab navigation (Home, Chats, Post, Profile)
+│   ├── auth/             # Login & Verification screens
+│   ├── chat/             # Messaging interface
+│   ├── listing/          # Product details view
+│   └── profile/          # Public profiles & connection lists
+├── components/           # Reusable UI components (ListingCard, CategoryCard, etc.)
+├── contexts/             # Global state (Auth & User session)
+├── lib/                  # Business logic & Third-party configurations
+│   ├── supabase.ts       # Supabase client init
+│   ├── firebase.ts       # Firebase app init
+│   ├── chat.ts           # Messaging helper functions
+│   └── follow.ts         # Social logic (follower/following)
+├── prisma/               # Database schema & migrations
+└── assets/               # Static images & fonts
+
+--------------------------------------------------------------------------------
+
+CORE WORKFLOWS
+--------------------------------------------------------------------------------
+
+1. Authentication Flow:
+   1. Input: User enters phone number.
+   2. Verification: Firebase sends an OTP; Invisible reCAPTCHA prevents bot abuse.
+   3. Registration: Upon successful OTP, the system checks if user exists in Supabase.
+   4. Syncing: If new, a user record is created in the 'users' table via Prisma schema.
+   5. Persistence: Session stored using AsyncStorage and managed by OTPAuthContext.
+
+2. Ad Listing Flow:
+   - Post Ad: Users fill form (Title, Price, Category, Condition, Description, Photos).
+   - Image Upload: Photos converted to Binary and uploaded to Supabase 'post-images'.
+   - Storage: Public URLs of images are stored in the 'Posts' table.
+   - Localization: Currency automatically formatted to INR (₹) across all views.
+
+3. Real-time Messaging:
+   - Initiation: A buyer clicks "Chat" on a listing.
+   - Real-time Engine: Chat screen subscribes to 'messages' table in Supabase.
+   - Instant Delivery: Messages appear instantly without page refreshes.
+
+4. Search & Discovery:
+   - Filtering: Filter listings by search, category, price range, and location.
+   - Freshness Tag: Items posted within 12 hours receive a "New" badge.
+   - Dynamic UI: Ad cards use dynamic aspect ratios to show full images.
+
+--------------------------------------------------------------------------------
+
+DATA MODEL (PRISMA)
+--------------------------------------------------------------------------------
+
+The project uses a relational model to ensure data integrity:
+- Users: Central entity for profiles and social connections.
+- Posts: Listing data including price, location, and images array.
+- Chats & Messages: Messaging system linked to users and/or specific listings.
+- Follows: Self-referencing table for the social graph (Follower/Following).
+
+--------------------------------------------------------------------------------
+
+TECHNICAL DEEP DIVE: FILE-BY-FILE ANALYSIS
+--------------------------------------------------------------------------------
+
+Core Layout & Navigation:
+- app/_layout.tsx: Entry point. Wraps app with OTPAuthContext, sets up Stack, 
+  and handles global font loading.
+- app/(tabs)/_layout.tsx: Configures the bottom tab bar with premium styling.
+
+Home & Discovery (app/(tabs)/index.tsx):
+- Logic: Search, category filtering, and promotional banners.
+- Tech Detail: High-performance filtering with useMemo. "New" badge logic.
+  Dynamic image aspect ratio calculation in ListingCard.
+
+Authentication (app/auth/login.tsx & contexts/OTPAuthContext.tsx):
+- OTPAuthContext.tsx: Security brain. Manages user state and persistence.
+- login.tsx: Implements reCAPTCHA and the two-step OTP verification process.
+
+Listing Management (app/(tabs)/post.tsx):
+- Logic: Complex form with validation.
+- Tech Detail: Binary image uploads to Supabase for speed and reliability.
+
+Messaging System (app/chat/[id].tsx & lib/chat.ts):
+- lib/chat.ts: Service layer for messaging queries.
+- app/chat/[id].tsx: Subscribes to Supabase real-time messages.
+
+Social Logic (lib/follow.ts & app/profile/[id].tsx):
+- lib/follow.ts: Follow system logic using the 'follows' table.
+- Optimistic UI: Snappy UX for follow/unfollow actions.
+
+Database Layer (prisma/schema.prisma):
+- Design: Relational schema mapping Users, Posts, Sessions, Chats, and Messages.
+
+Styling System:
+- constants/Colors.ts: Theme color definitions.
+- Vanilla CSS: StyleSheet.create for 60FPS performance and a premium look.
+
+--------------------------------------------------------------------------------
+
+DYNAMIC LOGIC WORKFLOWS
+--------------------------------------------------------------------------------
+
+Image Handling:
+Uses expo-file-system and Supabase Storage. Images are processed with unique IDs 
+and served via Supabase's global CDN.
+
+Currency Localization:
+Uses .toLocaleString('en-IN') logic to format prices into Indian Rupees (₹) 
+with proper Indian numbering system comma placement (e.g., ₹1,00,000).
+
+--------------------------------------------------------------------------------
+
+BUILD & CONFIGURATION
+--------------------------------------------------------------------------------
+- package.json: Defines dependencies (Supabase, Firebase, Expo Router).
+- app.json / expo.json: Manifest for app name, icons, and package IDs.
+- eas.json: Config for building APK/IPA files and OTA updates.
+- prisma.config.ts: Prisma connection configuration.
+- .env: Stores sensitive API keys. DO NOT COMMIT TO PUBLIC REPOS.
+
+--------------------------------------------------------------------------------
+
+HOW IT WORKS (SUMMARY)
+--------------------------------------------------------------------------------
+1. User opens app: _layout.tsx checks session in AsyncStorage.
+2. Browsing: index.tsx fetches listings from Supabase.
+3. Interacting: Users chat or follow (service layer triggers base logic).
+4. Data Updates: Supabase sends real-time updates to relevant screens.
+5. Session End: signOut clears local tokens and returns user to login.
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================

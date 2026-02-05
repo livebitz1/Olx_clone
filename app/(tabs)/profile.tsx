@@ -619,20 +619,9 @@ export default function ProfileScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [activeTab, setActiveTab] = useState<'active' | 'following'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'sold'>('active');
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({ followers: 0, following: 0 });
-
-  const onRefresh = useCallback(async () => {
-    if (!user) return;
-    setRefreshing(true);
-    // Re-fetch listings
-    await fetchListings();
-    // Also re-fetch user profile data if we had a method for it, but fetchListings is the main dynamic content here.
-    // If we wanted to reload user data, we'd need to expose a reload function from useAuth or manually fetch.
-    // For now, refreshing listings is the primary action.
-    setRefreshing(false);
-  }, [fetchListings, user]);
 
   // Fetch user's listings from Supabase
   const fetchListings = useCallback(async () => {
@@ -672,6 +661,17 @@ export default function ProfileScreen() {
       console.error('Error fetching stats:', e);
     }
   }, [user]);
+
+  const onRefresh = useCallback(async () => {
+    if (!user) return;
+    setRefreshing(true);
+    // Re-fetch listings
+    await fetchListings();
+    // Also re-fetch user profile data if we had a method for it, but fetchListings is the main dynamic content here.
+    // If we wanted to reload user data, we'd need to expose a reload function from useAuth or manually fetch.
+    // For now, refreshing listings is the primary action.
+    setRefreshing(false);
+  }, [fetchListings, user]);
 
   // Fetch listings on mount
   useEffect(() => {
@@ -775,8 +775,8 @@ export default function ProfileScreen() {
   }
 
   const activeListings = listings.filter((l) => !l.isSold);
-  // const soldListings = listings.filter((l) => l.isSold); // Removed as we are replacing it with Following
-  const displayedListings = activeTab === 'active' ? activeListings : []; // No following data yet
+  const soldListings = listings.filter((l) => l.isSold);
+  const displayedListings = activeTab === 'active' ? activeListings : soldListings;
 
   // Avatar source
   const avatarSource = user.avatar ? { uri: user.avatar } : DEFAULT_AVATAR;
@@ -913,16 +913,16 @@ export default function ProfileScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'following' && styles.tabActive]}
-            onPress={() => setActiveTab('following')}
+            style={[styles.tab, activeTab === 'sold' && styles.tabActive]}
+            onPress={() => setActiveTab('sold')}
           >
             <Ionicons
-              name="people-outline"
+              name="checkmark-done-outline"
               size={20}
-              color={activeTab === 'following' ? colors.primary : colors.textSecondary}
+              color={activeTab === 'sold' ? colors.primary : colors.textSecondary}
             />
-            <Text style={[styles.tabText, activeTab === 'following' && styles.tabTextActive]}>
-              Following (0)
+            <Text style={[styles.tabText, activeTab === 'sold' && styles.tabTextActive]}>
+              Sold ({soldListings.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -948,18 +948,18 @@ export default function ProfileScreen() {
           <View style={styles.emptyState}>
             <View style={styles.emptyStateIcon}>
               <Ionicons
-                name={activeTab === 'active' ? 'cube-outline' : 'people-outline'}
+                name={activeTab === 'active' ? 'cube-outline' : 'cart-outline'}
                 size={48}
                 color={colors.textTertiary}
               />
             </View>
             <Text style={styles.emptyStateTitle}>
-              {activeTab === 'active' ? 'No active listings' : 'You are not following anyone'}
+              {activeTab === 'active' ? 'No active listings' : 'No sold items yet'}
             </Text>
             <Text style={styles.emptyStateSubtitle}>
               {activeTab === 'active'
                 ? 'Start selling by creating your first listing'
-                : 'When you follow people, they will appear here'}
+                : 'When you sell an item, it will appear here'}
             </Text>
             {activeTab === 'active' && (
               <TouchableOpacity

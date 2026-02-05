@@ -45,7 +45,7 @@ const COUNTRIES: Country[] = [
   { code: 'MX', name: 'Mexico', dialCode: '+52', flag: '🇲🇽' },
 ];
 
-const OTP_LENGTH = 6; // Firebase uses 6-digit OTP
+const OTP_LENGTH = 6; // User requested 6-digit OTP
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -91,12 +91,7 @@ export default function LoginScreen() {
     }
   }, [setRecaptchaVerifier]);
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated && !authLoading) {
-      router.replace('/(tabs)');
-    }
-  }, [isAuthenticated, authLoading]);
+
 
   // Resend timer countdown
   useEffect(() => {
@@ -119,9 +114,46 @@ export default function LoginScreen() {
   };
 
   const handlePhoneChange = (text: string) => {
-    const formatted = formatPhoneNumber(text);
+    // Only allow numbers
+    const clean = text.replace(/\D/g, '');
+    if (clean.length > 10) return;
+    const formatted = formatPhoneNumber(clean);
     setPhoneNumber(formatted);
     setPhoneError('');
+  };
+
+  const handleKeyPress = (key: string) => {
+    if (showOTPScreen) {
+      if (key === 'backspace') {
+        // Find last filled index
+        const lastIndex = otp.map((d, i) => d !== '' ? i : -1).filter(v => v !== -1).pop();
+        if (lastIndex !== undefined) {
+          const newOtp = [...otp];
+          newOtp[lastIndex] = '';
+          setOtp(newOtp);
+        }
+      } else {
+        // Find first empty index
+        const emptyIndex = otp.findIndex(d => d === '');
+        if (emptyIndex !== -1) {
+          const newOtp = [...otp];
+          newOtp[emptyIndex] = key;
+          setOtp(newOtp);
+        }
+      }
+      return;
+    }
+
+    if (key === 'backspace') {
+      const clean = getCleanPhoneNumber();
+      const newNumber = clean.slice(0, -1);
+      handlePhoneChange(newNumber);
+    } else {
+      const clean = getCleanPhoneNumber();
+      if (clean.length < 10) {
+        handlePhoneChange(clean + key);
+      }
+    }
   };
 
   const getCleanPhoneNumber = (): string => {
@@ -233,21 +265,21 @@ export default function LoginScreen() {
       loaderProgressAnim.setValue(0);
       Animated.timing(loaderProgressAnim, {
         toValue: 1,
-        duration: 2000,
+        duration: 3000,
         useNativeDriver: false,
       }).start();
 
       // Wait for user data to be saved to Supabase and then navigate
       setTimeout(() => {
-        // Smooth navigation with fade animation
+        // Smooth navigation with sleek fade-out animation
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 300,
+          duration: 500, // Sleeker, slightly slower fade
           useNativeDriver: true,
         }).start(() => {
           router.replace('/(tabs)');
         });
-      }, 2000); // Show success animation for 2 seconds
+      }, 4000); // Show success animation for 4 seconds as requested
     } else {
       setOtpError(result.error || 'Invalid OTP. Please try again.');
       setOtp(Array(OTP_LENGTH).fill(''));
@@ -295,100 +327,77 @@ export default function LoginScreen() {
         { opacity: fadeAnim, transform: [{ translateX: slideAnim }] },
       ]}
     >
-      {/* Logo/Brand Section */}
-      <View style={styles.brandSection}>
-        <LinearGradient
-          colors={['#2563eb', '#1d4ed8', '#1e40af']}
-          style={styles.logoGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Ionicons name="storefront" size={32} color="#fff" />
-        </LinearGradient>
-        <Text style={styles.brandName}>Marketplace</Text>
-        <Text style={styles.brandTagline}>Buy & Sell Anything</Text>
-      </View>
-
-      {/* Card Container */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Welcome Back</Text>
-          <Text style={styles.cardSubtitle}>
-            Enter your phone number to receive a verification code
-          </Text>
-        </View>
-
-        <View style={styles.inputSection}>
-          <Text style={styles.label}>Phone Number</Text>
-          <View style={styles.phoneInputContainer}>
-            <Pressable
-              style={styles.countrySelector}
-              onPress={() => setCountryModalVisible(true)}
-            >
-              <Text style={styles.countryFlag}>{selectedCountry.flag}</Text>
-              <Text style={styles.countryCode}>{selectedCountry.dialCode}</Text>
-              <Ionicons name="chevron-down" size={14} color="#64748b" />
-            </Pressable>
-
-            <TextInput
-              style={[styles.phoneInput, phoneError && styles.inputError]}
-              placeholder="98765 43210"
-              placeholderTextColor="#94a3b8"
-              keyboardType="phone-pad"
-              value={phoneNumber}
-              onChangeText={handlePhoneChange}
-              maxLength={11}
-              autoFocus
-            />
-          </View>
-          {phoneError ? (
-            <View style={styles.errorRow}>
-              <Ionicons name="alert-circle" size={14} color="#ef4444" />
-              <Text style={styles.errorText}>{phoneError}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        <Pressable
-          style={[
-            styles.primaryButton,
-            (!getCleanPhoneNumber() || isSendingOTP) && styles.primaryButtonDisabled,
-          ]}
-          onPress={handleSendOTP}
-          disabled={!getCleanPhoneNumber() || isSendingOTP}
-        >
-          <LinearGradient
-            colors={(!getCleanPhoneNumber() || isSendingOTP) ? ['#93c5fd', '#93c5fd'] : ['#2563eb', '#1d4ed8']}
-            style={styles.buttonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            {isSendingOTP ? (
-              <Text style={styles.primaryButtonText}>Sending OTP...</Text>
-            ) : (
-              <>
-                <Text style={styles.primaryButtonText}>Get OTP</Text>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
-              </>
-            )}
-          </LinearGradient>
+      {/* Header with Back Arrow */}
+      <View style={styles.headerRow}>
+        <Pressable onPress={() => router.back()} style={styles.headerBackButton}>
+          <Ionicons name="arrow-back" size={28} color="#000" />
         </Pressable>
+      </View>
 
-        {/* Info Note */}
-        <View style={styles.infoNote}>
-          <Ionicons name="information-circle-outline" size={18} color="#64748b" />
-          <Text style={styles.infoNoteText}>
-            We'll send a 6-digit verification code to this number
-          </Text>
+      <Text style={styles.mockupTitle}>Continue with Phone</Text>
+
+      <View style={styles.mockupInputSection}>
+        <Text style={styles.mockupLabel}>Number</Text>
+        <View style={styles.mockupPhoneRow}>
+          <View style={styles.countryBox}>
+            <Text style={styles.countryBoxText}>{selectedCountry.dialCode}</Text>
+          </View>
+          <View style={styles.numberBox}>
+            <Text style={[styles.numberBoxText, !phoneNumber && styles.placeholderText]}>
+              {phoneNumber || '63832 92272'}
+            </Text>
+          </View>
         </View>
       </View>
 
-      <Text style={styles.termsText}>
-        By continuing, you agree to our{' '}
-        <Text style={styles.termsLink}>Terms of Service</Text>
-        {' '}and{' '}
-        <Text style={styles.termsLink}>Privacy Policy</Text>
-      </Text>
+      <Pressable
+        style={[
+          styles.mockupButton,
+          (!getCleanPhoneNumber() || isSendingOTP) && styles.mockupButtonDisabled,
+        ]}
+        onPress={handleSendOTP}
+        disabled={!getCleanPhoneNumber() || isSendingOTP}
+      >
+        {isSendingOTP ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.mockupButtonText}>Send Code</Text>
+        )}
+      </Pressable>
+
+      {/* Custom Keypad */}
+      <View style={styles.keypadContainer}>
+        <View style={styles.keypadRow}>
+          {['1', '2', '3'].map((key) => (
+            <Pressable key={key} style={styles.key} onPress={() => handleKeyPress(key)}>
+              <Text style={styles.keyText}>{key}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.keypadRow}>
+          {['4', '5', '6'].map((key) => (
+            <Pressable key={key} style={styles.key} onPress={() => handleKeyPress(key)}>
+              <Text style={styles.keyText}>{key}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.keypadRow}>
+          {['7', '8', '9'].map((key) => (
+            <Pressable key={key} style={styles.key} onPress={() => handleKeyPress(key)}>
+              <Text style={styles.keyText}>{key}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.keypadRow}>
+          <View style={[styles.key, { backgroundColor: 'transparent' }]} />
+          <Pressable style={styles.key} onPress={() => handleKeyPress('0')}>
+            <Text style={styles.keyText}>0</Text>
+          </Pressable>
+          <Pressable style={[styles.key, { backgroundColor: 'transparent' }]} onPress={() => handleKeyPress('backspace')}>
+            <Ionicons name="backspace-outline" size={24} color="#000" />
+          </Pressable>
+        </View>
+      </View>
     </Animated.View>
   );
 
@@ -399,101 +408,82 @@ export default function LoginScreen() {
         { opacity: fadeAnim, transform: [{ translateX: slideAnim }] },
       ]}
     >
-      <Pressable style={styles.backButton} onPress={handleBackToPhone}>
-        <Ionicons name="arrow-back" size={22} color="#1e293b" />
-      </Pressable>
-
-      {/* OTP Card */}
-      <View style={styles.card}>
-        <View style={styles.otpHeader}>
-          <LinearGradient
-            colors={['#10b981', '#059669']}
-            style={styles.otpIconGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="shield-checkmark" size={32} color="#fff" />
-          </LinearGradient>
-          <Text style={styles.cardTitle}>Verify OTP</Text>
-          <Text style={styles.cardSubtitle}>
-            Enter the {OTP_LENGTH}-digit code sent to{'\n'}
-            <Text style={styles.phoneHighlight}>
-              {selectedCountry.dialCode} {phoneNumber}
-            </Text>
-          </Text>
-        </View>
-
-        <View style={styles.otpSection}>
-          <View style={styles.otpContainer}>
-            {otp.map((digit: string, index: number) => (
-              <TextInput
-                key={index}
-                ref={(ref: TextInput | null) => {
-                  otpInputs.current[index] = ref;
-                }}
-                style={[
-                  styles.otpInput,
-                  digit && styles.otpInputFilled,
-                  otpError && styles.otpInputError,
-                ]}
-                value={digit}
-                onChangeText={(text: string) => handleOTPChange(text, index)}
-                onKeyPress={(e) => handleOTPKeyPress(e, index)}
-                keyboardType="number-pad"
-                maxLength={1}
-                selectTextOnFocus
-              />
-            ))}
-          </View>
-          {otpError ? (
-            <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={16} color="#ef4444" />
-              <Text style={styles.errorText}>{otpError}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        <Pressable
-          style={[
-            styles.primaryButton,
-            (!isOTPComplete() || isVerifying) && styles.primaryButtonDisabled,
-          ]}
-          onPress={handleVerifyOTP}
-          disabled={!isOTPComplete() || isVerifying}
-        >
-          <LinearGradient
-            colors={(!isOTPComplete() || isVerifying) ? ['#93c5fd', '#93c5fd'] : ['#10b981', '#059669']}
-            style={styles.buttonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            {isVerifying ? (
-              <Text style={styles.primaryButtonText}>Verifying...</Text>
-            ) : (
-              <>
-                <Text style={styles.primaryButtonText}>Verify & Continue</Text>
-                <Ionicons name="checkmark-circle" size={20} color="#fff" />
-              </>
-            )}
-          </LinearGradient>
+      <View style={styles.headerRow}>
+        <Pressable onPress={handleBackToPhone} style={styles.headerBackButton}>
+          <Ionicons name="arrow-back" size={28} color="#000" />
         </Pressable>
-
-        <View style={styles.resendContainer}>
-          <Text style={styles.resendText}>Didn't receive the code?</Text>
-          <Pressable onPress={handleResendOTP} disabled={resendTimer > 0}>
-            <Text style={[styles.resendLink, resendTimer > 0 && styles.resendLinkDisabled]}>
-              {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
-            </Text>
-          </Pressable>
-        </View>
       </View>
 
-      {/* Security Note */}
-      <View style={styles.securityNote}>
-        <Ionicons name="lock-closed" size={16} color="#64748b" />
-        <Text style={styles.securityNoteText}>
-          Your information is protected with end-to-end encryption
-        </Text>
+      <Text style={styles.mockupTitle}>Enter 6 Digit Code</Text>
+      <Text style={styles.mockupSubtitle}>
+        Enter 6 digit code that your receive on your Phone ({phoneNumber || '63832 92272'}).
+      </Text>
+
+      <View style={styles.otpBoxesRow}>
+        {otp.map((digit, index) => (
+          <View key={index} style={styles.otpBox}>
+            <Text style={styles.otpBoxText}>{digit}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.resendWrapper}>
+        <Text style={styles.resendWrapperText}>Email not received? </Text>
+        <Pressable onPress={handleResendOTP} disabled={resendTimer > 0}>
+          <Text style={styles.resendWrapperLink}>
+            {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend code'}
+          </Text>
+        </Pressable>
+      </View>
+
+      <Pressable
+        style={[
+          styles.mockupButton,
+          (!isOTPComplete() || isVerifying) && styles.mockupButtonDisabled,
+          { marginTop: 40 }
+        ]}
+        onPress={handleVerifyOTP}
+        disabled={!isOTPComplete() || isVerifying}
+      >
+        {isVerifying ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.mockupButtonText}>Continue</Text>
+        )}
+      </Pressable>
+
+      {/* Custom Keypad */}
+      <View style={styles.keypadContainer}>
+        <View style={styles.keypadRow}>
+          {['1', '2', '3'].map((key) => (
+            <Pressable key={key} style={styles.key} onPress={() => handleKeyPress(key)}>
+              <Text style={styles.keyText}>{key}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.keypadRow}>
+          {['4', '5', '6'].map((key) => (
+            <Pressable key={key} style={styles.key} onPress={() => handleKeyPress(key)}>
+              <Text style={styles.keyText}>{key}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.keypadRow}>
+          {['7', '8', '9'].map((key) => (
+            <Pressable key={key} style={styles.key} onPress={() => handleKeyPress(key)}>
+              <Text style={styles.keyText}>{key}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.keypadRow}>
+          <View style={[styles.key, { backgroundColor: 'transparent' }]} />
+          <Pressable style={styles.key} onPress={() => handleKeyPress('0')}>
+            <Text style={styles.keyText}>0</Text>
+          </Pressable>
+          <Pressable style={[styles.key, { backgroundColor: 'transparent' }]} onPress={() => handleKeyPress('backspace')}>
+            <Ionicons name="backspace-outline" size={24} color="#000" />
+          </Pressable>
+        </View>
       </View>
     </Animated.View>
   );
@@ -517,45 +507,13 @@ export default function LoginScreen() {
           },
         ]}
       >
-        <LinearGradient
-          colors={['#10b981', '#059669']}
-          style={styles.loaderIconContainer}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Animated.View
-            style={[
-              styles.checkmarkContainer,
-              {
-                transform: [
-                  {
-                    scale: fadeAnim.interpolate({
-                      inputRange: [0, 0.5, 1],
-                      outputRange: [0, 1.2, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <Ionicons name="checkmark" size={48} color="#fff" />
-          </Animated.View>
-        </LinearGradient>
-        <Text style={styles.loaderTitle}>Authentication Successful!</Text>
-        <Text style={styles.loaderSubtitle}>Setting up your account...</Text>
-        <View style={styles.loaderProgressContainer}>
-          <Animated.View
-            style={[
-              styles.loaderProgressFill,
-              {
-                width: loaderProgressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
-                }),
-              },
-            ]}
-          />
+        <View style={styles.successCheckmarkWrapper}>
+          <Ionicons name="checkmark-circle" size={100} color="#10b981" />
         </View>
+        <Text style={styles.mockupSuccessTitle}>Log in Successfully</Text>
+        <Text style={styles.mockupSuccessSubtitle}>
+          You’re logged in successfully, start buying selling.
+        </Text>
       </Animated.View>
     </View>
   );
@@ -599,6 +557,7 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           {showOTPScreen ? renderOTPScreen() : renderPhoneScreen()}
+          <View style={{ height: 20 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -646,19 +605,19 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#fff',
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: SCREEN_WIDTH > 400 ? 28 : 20,
-    paddingVertical: SCREEN_HEIGHT > 700 ? 40 : 24,
-    minHeight: SCREEN_HEIGHT - 100,
+    paddingTop: 20,
+    paddingBottom: 20,
   },
   content: {
+    flex: 1,
     width: '100%',
     maxWidth: 420,
     alignSelf: 'center',
@@ -972,8 +931,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   otpInputFilled: {
-    borderColor: '#2563eb',
-    backgroundColor: '#eff6ff',
+    borderColor: '#FF4D00',
+    backgroundColor: '#FFF5F0',
   },
   otpInputError: {
     borderColor: '#ef4444',
@@ -990,7 +949,7 @@ const styles = StyleSheet.create({
   resendLink: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#2563eb',
+    color: '#FF4D00',
   },
   resendLinkDisabled: {
     color: '#94a3b8',
@@ -1054,7 +1013,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    backgroundColor: '#fff',
     zIndex: 9999,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1064,46 +1023,157 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 40,
   },
-  loaderIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 32,
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+  successCheckmarkWrapper: {
+    marginBottom: 20,
   },
-  checkmarkContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loaderTitle: {
+  mockupSuccessTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: 8,
+    color: '#000',
+    marginBottom: 10,
     textAlign: 'center',
   },
-  loaderSubtitle: {
+  mockupSuccessSubtitle: {
     fontSize: 16,
-    color: '#64748b',
-    marginBottom: 32,
+    color: '#808080',
     textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 30,
   },
-  loaderProgressContainer: {
-    width: 200,
-    height: 4,
-    backgroundColor: '#e2e8f0',
-    borderRadius: 2,
-    overflow: 'hidden',
+  // Mockup Specific Styles
+  headerRow: {
+    marginTop: 10,
+    marginBottom: 20,
   },
-  loaderProgressFill: {
-    height: '100%',
-    backgroundColor: '#10b981',
-    borderRadius: 2,
+  headerBackButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  mockupTitle: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#FF4D00',
+    marginTop: 0,
+    marginBottom: 40,
+    textAlign: 'left',
+  },
+  mockupInputSection: {
+    marginBottom: 40,
+  },
+  mockupLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 12,
+  },
+  mockupPhoneRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  countryBox: {
+    backgroundColor: '#F2F2F2',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    minWidth: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countryBoxText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+  },
+  numberBox: {
+    flex: 1,
+    backgroundColor: '#F2F2F2',
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    justifyContent: 'center',
+  },
+  numberBoxText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    letterSpacing: 1,
+  },
+  placeholderText: {
+    color: '#A0A0A0',
+  },
+  mockupButton: {
+    backgroundColor: '#FF4D00',
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 40,
+  },
+  mockupButtonDisabled: {
+    opacity: 0.6,
+  },
+  mockupButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  keypadContainer: {
+    marginTop: 'auto',
+    gap: 12,
+  },
+  keypadRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  key: {
+    flex: 1,
+    backgroundColor: '#F2F2F2',
+    borderRadius: 16,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  keyText: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#000',
+  },
+  mockupSubtitle: {
+    fontSize: 16,
+    color: '#A0A0A0',
+    lineHeight: 22,
+    marginBottom: 30,
+  },
+  otpBoxesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  otpBox: {
+    width: (SCREEN_WIDTH - 100) / 6,
+    height: 60,
+    backgroundColor: '#F2F2F2',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  otpBoxText: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#000',
+  },
+  resendWrapper: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resendWrapperText: {
+    fontSize: 15,
+    color: '#A0A0A0',
+  },
+  resendWrapperLink: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
   },
 });

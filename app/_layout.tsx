@@ -1,7 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import 'react-native-reanimated';
 
@@ -16,6 +16,7 @@ export const unstable_settings = {
 function NavigationGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const isInitialLoad = useRef(true);
   const segments = useSegments();
 
   useEffect(() => {
@@ -27,9 +28,15 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
       // User is not authenticated and not on auth screen - redirect to login
       router.replace('/auth/login');
     } else if (isAuthenticated && inAuthGroup) {
-      // User is authenticated but on auth screen - redirect to home
-      router.replace('/(tabs)');
+      // Only auto-redirect if it's the initial load (e.g. app just opened)
+      // Otherwise, let the LoginScreen handle its own success animation/transition
+      if (isInitialLoad.current) {
+        router.replace('/(tabs)');
+      }
     }
+
+    // Once we've handled the first valid auth state check, it's no longer initial load
+    isInitialLoad.current = false;
   }, [isAuthenticated, isLoading, segments]);
 
   // Show loading spinner while checking auth state

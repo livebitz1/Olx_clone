@@ -116,7 +116,7 @@ export const validatePhone = (phone: string): boolean => {
 
 // OTP Configuration
 export const OTP_CONFIG = {
-  length: 6, // Firebase uses 6-digit OTP
+  length: 6, // User requested 6-digit OTP
   timeoutSeconds: 60, // Auto-retrieval timeout
   maxAttempts: 3,
 };
