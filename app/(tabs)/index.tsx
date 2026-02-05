@@ -1000,7 +1000,10 @@ export default function HomeScreen() {
           </View>
         </View>
         <View style={styles.navRight}>
-          <TouchableOpacity style={styles.navIconButton}>
+          <TouchableOpacity
+            style={styles.navIconButton}
+            onPress={() => router.push('/notifications')}
+          >
             <Ionicons name="notifications-outline" size={24} color={colors.text} />
             <View style={styles.notificationDot} />
           </TouchableOpacity>

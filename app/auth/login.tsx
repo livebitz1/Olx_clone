@@ -277,7 +277,7 @@ export default function LoginScreen() {
           duration: 500, // Sleeker, slightly slower fade
           useNativeDriver: true,
         }).start(() => {
-          router.replace('/(tabs)');
+          router.replace('/auth/location-permission');
         });
       }, 3000); // Show success animation for 3 seconds only
     } else {

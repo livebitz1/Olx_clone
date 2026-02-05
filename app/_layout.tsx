@@ -29,14 +29,17 @@ function NavigationGuard({ children, isBooting }: { children: React.ReactNode, i
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === 'auth';
+    const isLocationScreen = segments[1] === 'location-permission';
 
     if (!isAuthenticated && !inAuthGroup) {
-      // User is not authenticated and not on auth screen - redirect to login
-      console.log('[NavigationGuard] 🔒 Not authenticated, redirecting to login');
-      router.replace('/auth/login');
-    } else if (isAuthenticated && inAuthGroup && isBooting) {
+      // User is not authenticated and not on auth screen - redirect to onboarding for first-time use
+      // OR direct to login if they've already started the onboarding flow
+      console.log('[NavigationGuard] 🔒 Not authenticated, redirecting to onboarding');
+      router.replace('/auth/onboarding');
+    } else if (isAuthenticated && inAuthGroup && isBooting && !isLocationScreen) {
       // If we are booting (splash screen still active) and authenticated,
       // perform a silent background redirect to the home screen.
+      // EXCEPTION: If the user is specifically on the location-permission screen, stay there.
       console.log('[NavigationGuard] 🚀 Boot redirect: Authenticated, moving to home underneath splash');
       router.replace('/(tabs)');
     }
@@ -70,7 +73,10 @@ export default function RootLayout() {
           {/* Main App Stack - runs in background during splash */}
           <NavigationGuard isBooting={showSplash}>
             <Stack>
+              <Stack.Screen name="auth/onboarding" options={{ headerShown: false }} />
               <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+              <Stack.Screen name="auth/location-permission" options={{ headerShown: false }} />
+              <Stack.Screen name="notifications" options={{ presentation: 'modal', headerShown: false }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="listing/[id]" options={{ headerShown: false }} />
