@@ -33,7 +33,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Used',
+          title: 'Home',
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={(focused ? "home-variant" : "home-variant-outline") as any}
@@ -45,12 +45,12 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="post"
+        name="rentals"
         options={{
           title: 'Rental',
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
-              name={(focused ? "office-building" : "office-building-outline") as any}
+              name={(focused ? "sofa" : "sofa-outline") as any}
               size={26}
               color={color}
             />
@@ -64,7 +64,7 @@ export default function TabLayout() {
           title: 'Businesses',
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
-              name={(focused ? "briefcase" : "briefcase-outline") as any}
+              name={(focused ? "office-building" : "office-building-outline") as any}
               size={26}
               color={color}
             />
@@ -86,11 +86,18 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Keep listing route available for navigation but hide it from the tab bar */}
+      {/* Keep listing and post routes available for navigation but hide them from the tab bar */}
       <Tabs.Screen
         name="listing/[id]"
         options={{
-          tabBarButton: () => null,
+          href: null,
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
+        name="post"
+        options={{
+          href: null,
           headerShown: false,
         }}
       />

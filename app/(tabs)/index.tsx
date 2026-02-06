@@ -77,22 +77,23 @@ const colors = {
 
 // Mock Categories Data with proper icons
 const categoriesData = [
-  { id: '1', name: 'Electronics', icon: 'laptop-outline', color: '#3B82F6' },
-  { id: '2', name: 'Fashion', icon: 'shirt-outline', color: '#EC4899' },
-  { id: '3', name: 'Home', icon: 'home-outline', color: '#F59E0B' },
-  { id: '4', name: 'Sports', icon: 'fitness-outline', color: '#10B981' },
-  { id: '5', name: 'Books', icon: 'book-outline', color: '#8B5CF6' },
-  { id: '6', name: 'Vehicles', icon: 'car-outline', color: '#EF4444' },
-  { id: '7', name: 'Toys', icon: 'game-controller-outline', color: '#F97316' },
+  { id: '1', name: 'Mobiles', icon: 'phone-portrait-outline', color: '#10B981' },
+  { id: '2', name: 'Cars', icon: 'car-outline', color: '#3B82F6' },
+  { id: '3', name: 'Bikes', icon: 'bicycle-outline', color: '#EF4444' },
+  { id: '4', name: 'Electronics', icon: 'laptop-outline', color: '#8B5CF6' },
+  { id: '5', name: 'Fashion', icon: 'shirt-outline', color: '#EC4899' },
+  { id: '6', name: 'Home', icon: 'home-outline', color: '#F59E0B' },
+  { id: '7', name: 'Properties', icon: 'business-outline', color: '#F97316' },
 ];
 
 // Price range options for filter
 const PRICE_RANGES = [
   { id: 'any', label: 'Any Price', min: 0, max: Infinity },
-  { id: 'under100', label: 'Under $100', min: 0, max: 100 },
-  { id: '100to500', label: '$100 - $500', min: 100, max: 500 },
-  { id: '500to1000', label: '$500 - $1,000', min: 500, max: 1000 },
-  { id: 'over1000', label: 'Over $1,000', min: 1000, max: Infinity },
+  { id: 'under5k', label: 'Under ₹5,000', min: 0, max: 5000 },
+  { id: '5k_20k', label: '₹5,000 - ₹20,000', min: 5000, max: 20000 },
+  { id: '20k_50k', label: '₹20,000 - ₹50,000', min: 20000, max: 50000 },
+  { id: '50k_1lakh', label: '₹50,000 - ₹1,00,000', min: 50000, max: 100000 },
+  { id: 'over1lakh', label: 'Over ₹1,00,000', min: 100000, max: Infinity },
 ];
 
 // Condition options for filter
@@ -106,10 +107,11 @@ const CONDITIONS = [
 // Location options for filter
 const LOCATIONS = [
   { id: 'any', label: 'All Locations' },
-  { id: 'san_francisco', label: 'San Francisco, CA' },
-  { id: 'austin', label: 'Austin, TX' },
-  { id: 'new_york', label: 'New York, NY' },
-  { id: 'los_angeles', label: 'Los Angeles, CA' },
+  { id: 'delhi', label: 'Delhi, NCR' },
+  { id: 'mumbai', label: 'Mumbai, Maharashtra' },
+  { id: 'bangalore', label: 'Bangalore, Karnataka' },
+  { id: 'jaipur', label: 'Jaipur, Rajasthan' },
+  { id: 'hyderabad', label: 'Hyderabad, Telangana' },
 ];
 
 // Filter Modal Component
@@ -504,7 +506,7 @@ const SearchBar: React.FC<{
       <Ionicons name="search" size={20} color={colors.textTertiary} />
       <TextInput
         style={styles.searchInput}
-        placeholder="Search for anything..."
+        placeholder="Search cars, mobiles, bikes..."
         placeholderTextColor={colors.textTertiary}
         onChangeText={onSearchChange}
       />

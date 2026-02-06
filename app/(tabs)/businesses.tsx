@@ -100,51 +100,70 @@ const BusinessCard = ({ item }: { item: typeof MOCK_BUSINESSES[0] }) => {
 export default function BusinessesScreen() {
     const router = useRouter();
     const { user } = useAuth();
+    const [userProfile, setUserProfile] = useState<any>(null);
+
+    useEffect(() => {
+        if (user) {
+            if (user.avatar) {
+                setUserProfile(user);
+            } else {
+                fetchUserProfile();
+            }
+        }
+    }, [user]);
+
+    const fetchUserProfile = async () => {
+        if (!user) return;
+        const { data, error } = await supabase
+            .from('users')
+            .select('avatar, name')
+            .eq('id', user.id)
+            .single();
+
+        if (data) {
+            setUserProfile(data);
+        }
+    };
+
     const [search, setSearch] = useState('');
 
     return (
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
 
-            {/* Custom Header */}
-            <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <TouchableOpacity
-                        style={styles.avatarButton}
-                        onPress={() => router.push('/profile')}
-                    >
-                        <Image
-                            source={{ uri: user?.avatar || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1000' }}
-                            style={styles.headerAvatar}
-                        />
+            {/* Top Navigation Bar (Same as Home) */}
+            <View style={styles.topNav}>
+                <View style={styles.navLeft}>
+                    <TouchableOpacity style={styles.profileButton} onPress={() => router.push('/profile')}>
+                        {userProfile?.avatar ? (
+                            <Image
+                                source={{ uri: userProfile.avatar }}
+                                style={styles.profileImage}
+                                resizeMode="cover"
+                            />
+                        ) : (
+                            <View style={[styles.profileImage, styles.profilePlaceholder]}>
+                                <Ionicons name="person" size={20} color={COLORS.textSecondary} />
+                            </View>
+                        )}
                     </TouchableOpacity>
-                    <View style={styles.addressContainer}>
-                        <Text style={styles.addressLabel}>Address</Text>
-                        <TouchableOpacity style={styles.addressSelector}>
-                            <Text style={styles.addressText} numberOfLines={1}>
-                                Lohakhan, Delhi
-                            </Text>
-                            <Ionicons name="chevron-down" size={16} color={COLORS.text} />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                <View style={styles.headerRight}>
-                    <View style={styles.brandLogoContainer}>
-                        <View style={styles.brandLogoCircle}>
-                            <Text style={styles.brandLogoText}>m</Text>
+                    <View>
+                        <Text style={styles.navGreeting}>Hello, {userProfile?.name?.split(' ')[0] || 'User'} 👋</Text>
+                        <View style={styles.locationRow}>
+                            <Ionicons name="location" size={14} color={COLORS.primary} />
+                            <Text style={styles.navLocation}>{user?.location || 'Jaipur, India'}</Text>
                         </View>
                     </View>
-
+                </View>
+                <View style={styles.navRight}>
                     <TouchableOpacity
-                        style={styles.iconButton}
+                        style={styles.navIconButton}
                         onPress={() => router.push('/notifications')}
                     >
                         <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
-                        <View style={styles.badge} />
+                        <View style={styles.notificationDot} />
                     </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.iconButton}>
+                    <TouchableOpacity style={styles.navIconButton}>
                         <Ionicons name="heart-outline" size={24} color={COLORS.text} />
                     </TouchableOpacity>
                 </View>
@@ -187,76 +206,60 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.background,
     },
-    header: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+    topNav: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
         backgroundColor: '#FFF',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
     },
-    headerLeft: {
+    navLeft: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
     },
-    avatarButton: {
+    profileButton: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        overflow: 'hidden',
-        backgroundColor: '#F0F0F0',
+        borderWidth: 2,
+        borderColor: COLORS.primary,
+        padding: 2,
     },
-    headerAvatar: {
+    profileImage: {
         width: '100%',
         height: '100%',
+        borderRadius: 20,
     },
-    addressContainer: {
+    profilePlaceholder: {
+        backgroundColor: COLORS.border,
+        alignItems: 'center',
         justifyContent: 'center',
     },
-    addressLabel: {
-        fontSize: 12,
-        color: COLORS.textSecondary,
-        fontWeight: '600',
+    navGreeting: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: COLORS.text,
+        marginBottom: 2,
     },
-    addressSelector: {
+    locationRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
     },
-    addressText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: COLORS.text,
-        maxWidth: 120,
+    navLocation: {
+        fontSize: 12,
+        color: COLORS.textSecondary,
+        fontWeight: '500',
     },
-    headerRight: {
+    navRight: {
         flexDirection: 'row',
-        alignItems: 'center',
         gap: 8,
     },
-    brandLogoContainer: {
-        marginRight: 4,
-    },
-    brandLogoCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#007AFF', // Blue gradient start normally, using solid blue for 'm'
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#007AFF',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-        elevation: 4,
-    },
-    brandLogoText: {
-        color: '#FFF',
-        fontSize: 20,
-        fontWeight: '800',
-    },
-    iconButton: {
+    navIconButton: {
         width: 44,
         height: 44,
         borderRadius: 22,
@@ -265,7 +268,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         position: 'relative',
     },
-    badge: {
+    notificationDot: {
         position: 'absolute',
         top: 10,
         right: 12,
