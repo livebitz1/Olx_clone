@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
@@ -18,6 +20,9 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/OTPAuthContext';
+import { useRouter } from 'expo-router';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const CATEGORIES = [
   { id: '1', name: 'Vehicles', icon: 'car-outline' },
@@ -75,6 +80,11 @@ export default function PostAdScreen() {
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [showSuccessLoader, setShowSuccessLoader] = useState(false);
+
+  // Animation refs
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const router = useRouter();
   // Fetch the current user's record from the users table (by Firebase UID)
   const [currentUserDbId, setCurrentUserDbId] = useState<string | null>(null);
 
@@ -116,8 +126,7 @@ export default function PostAdScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images, // fallback for current Expo version
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsEditing: false, // Changed to false to support all sizes without cropping
       quality: 0.8,
     });
 
@@ -241,20 +250,29 @@ export default function PostAdScreen() {
       return;
     }
     setIsSubmitting(false);
-    Alert.alert(
-      'Ad Posted Successfully! 🎉',
-      'Your listing is now live and visible to buyers.',
-      [
-        {
-          text: 'Post Another',
-          onPress: resetForm,
-        },
-        {
-          text: 'Done',
-          style: 'default',
-        },
-      ]
-    );
+
+    // Show professional success animation
+    setShowSuccessLoader(true);
+    fadeAnim.setValue(0);
+    Animated.spring(fadeAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7,
+    }).start();
+
+    // Reset form and hide animation after 3 seconds
+    setTimeout(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        setShowSuccessLoader(false);
+        resetForm();
+        // Optional: navigation can be added here if needed
+      });
+    }, 3000);
   };
 
   const resetForm = () => {
@@ -282,6 +300,36 @@ export default function PostAdScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
+        {/* Success Loader Overlay */}
+        {showSuccessLoader && (
+          <View style={styles.loaderOverlay}>
+            <Animated.View
+              style={[
+                styles.loaderContainer,
+                {
+                  opacity: fadeAnim,
+                  transform: [
+                    {
+                      scale: fadeAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.8, 1],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <View style={styles.successCheckmarkWrapper}>
+                <Ionicons name="checkmark-circle" size={100} color="#10b981" />
+              </View>
+              <Text style={styles.mockupSuccessTitle}>Ad Posted Successfully! 🎉</Text>
+              <Text style={styles.mockupSuccessSubtitle}>
+                Your listing is now live and visible to buyers in your neighborhood.
+              </Text>
+            </Animated.View>
+          </View>
+        )}
+
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Post Your Ad</Text>
@@ -1101,5 +1149,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#475569',
     lineHeight: 22,
+  },
+  // Success Animation Styles
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    zIndex: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loaderContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  successCheckmarkWrapper: {
+    marginBottom: 24,
+  },
+  mockupSuccessTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#1e293b',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  mockupSuccessSubtitle: {
+    fontSize: 16,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 24,
+    maxWidth: 280,
   },
 });

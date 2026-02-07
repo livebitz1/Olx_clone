@@ -8,6 +8,7 @@ import {
   Dimensions,
   Pressable,
   Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -17,6 +18,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/OTPAuthContext';
 import { getAuth } from 'firebase/auth';
 import { getOrCreateChat } from '@/lib/chat';
+import { toggleFavorite, isFavorited as checkIsFavorited } from '@/lib/favorites';
 
 const { width } = Dimensions.get('window');
 const IMAGE_HEIGHT = 360;
@@ -39,6 +41,8 @@ export default function ProductDetails() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isFavorited, setIsFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const scrollRef = useRef<ScrollView | null>(null);
 
   useEffect(() => {
@@ -92,6 +96,16 @@ export default function ProductDetails() {
     fetchCurrentUserDbId();
   }, []);
 
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (currentUserDbId && id) {
+        const favorited = await checkIsFavorited(currentUserDbId, id);
+        setIsFavorited(favorited);
+      }
+    };
+    checkFavoriteStatus();
+  }, [currentUserDbId, id]);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -121,38 +135,67 @@ export default function ProductDetails() {
 
   // Delete functionality
   const handleDelete = async () => {
-    Alert.alert(
-      'Delete Listing',
-      'Are you sure you want to permanently delete this listing? This action cannot be undone. All associated data will be removed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase.from('posts').delete().eq('id', id);
-              if (error) {
-                Alert.alert('Error', error.message || 'Failed to delete listing.');
-              } else {
-                Alert.alert('Deleted', 'Your listing has been deleted successfully.', [
-                  {
-                    text: 'OK',
-                    onPress: () => router.replace('/'),
-                  },
-                ]);
-              }
-            } catch (err) {
-              Alert.alert('Error', 'An unexpected error occurred while deleting the listing.');
-            }
-          },
-        },
-      ]
-    );
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from('posts').delete().eq('id', id);
+      if (error) {
+        Alert.alert('Error', error.message || 'Failed to delete listing.');
+        setIsDeleting(false);
+        setDeleteModalVisible(false);
+      } else {
+        setDeleteModalVisible(false);
+        router.replace('/');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An unexpected error occurred while deleting the listing.');
+      setIsDeleting(false);
+      setDeleteModalVisible(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteCard}>
+            <View style={styles.trashCircle}>
+              <Ionicons name="trash-outline" size={32} color="#EF4444" />
+            </View>
+            <Text style={styles.deleteTitle}>Delete listing?</Text>
+            <Text style={styles.deleteSubtitle}>
+              Are you sure you want to permanently delete this listing? This action cannot be undone.
+            </Text>
+            <View style={styles.deleteActions}>
+              <Pressable
+                style={styles.cancelButton}
+                onPress={() => setDeleteModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Dismiss</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.confirmDeleteButton, isDeleting && styles.disabledButton]}
+                onPress={confirmDelete}
+                disabled={isDeleting}
+              >
+                <Text style={styles.confirmDeleteText}>
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Enhanced header */}
       <View style={styles.topBar}>
         <Pressable
@@ -171,7 +214,18 @@ export default function ProductDetails() {
             <Ionicons name="share-outline" size={22} color={TEXT} />
           </Pressable>
           <Pressable
-            onPress={() => setIsFavorited(!isFavorited)}
+            onPress={async () => {
+              if (!currentUserDbId) {
+                Alert.alert('Login Required', 'Please login to save items.');
+                return;
+              }
+              const { favorited, error } = await toggleFavorite(currentUserDbId, id);
+              if (error) {
+                Alert.alert('Error', 'Failed to update favorite status.');
+              } else if (favorited !== null) {
+                setIsFavorited(favorited);
+              }
+            }}
             style={styles.headerButton}
           >
             <Ionicons
@@ -701,5 +755,80 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: '700',
     fontSize: 15,
+  },
+  // Delete Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  deleteCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  trashCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEF2F2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  deleteTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  deleteSubtitle: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  deleteActions: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  confirmDeleteButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+  },
+  confirmDeleteText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

@@ -86,14 +86,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Keep listing and post routes available for navigation but hide them from the tab bar */}
-      <Tabs.Screen
-        name="listing/[id]"
-        options={{
-          href: null,
-          headerShown: false,
-        }}
-      />
+      {/* Keep post route available for navigation but hide it from the tab bar */}
       <Tabs.Screen
         name="post"
         options={{

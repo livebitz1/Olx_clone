@@ -16,10 +16,12 @@ import {
   Pressable,
   RefreshControl,
   FlatList,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { toggleFavorite, isFavorited as checkIsFavorited } from '@/lib/favorites';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 
 // Get screen dimensions with responsive breakpoints
@@ -62,17 +64,17 @@ const colors = {
   textSecondary: '#64748B',
   textTertiary: '#94A3B8',
   border: '#E2E8F0',
-  primary: '#2F80ED',
-  primaryLight: '#EFF6FF',
-  primaryDark: '#1E40AF',
-  accent: '#8B5CF6',
-  accentLight: '#F5F3FF',
+  primary: '#FF4D00',
+  primaryLight: '#FFF5F0',
+  primaryDark: '#D94100',
+  accent: '#FF4D00',
+  accentLight: '#FFE5D9',
   success: '#10B981',
   warning: '#F59E0B',
   danger: '#EF4444',
   shadow: '#0F172A',
-  gradient1: '#3B82F6',
-  gradient2: '#8B5CF6',
+  gradient1: '#FF4D00',
+  gradient2: '#FF8000',
 };
 
 // Mock Categories Data with proper icons
@@ -433,7 +435,7 @@ const filterStyles = StyleSheet.create({
   },
   listOptionTextSelected: {
     color: colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   locationOption: {
     flexDirection: 'row',
@@ -560,7 +562,7 @@ const CategoryCard: React.FC<{
 };
 
 // Featured Listing Card Component
-const ListingCard: React.FC<{ listing: any; onPress: () => void }> = ({ listing, onPress }) => {
+const ListingCard: React.FC<{ listing: any; onPress: () => void; userId?: string | null }> = ({ listing, onPress, userId }) => {
   const [isFavorited, setIsFavorited] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(1); // Default square
 
@@ -582,6 +584,17 @@ const ListingCard: React.FC<{ listing: any; onPress: () => void }> = ({ listing,
       });
     }
   }, [firstImage]);
+
+  // Persistent Favorite Status
+  useEffect(() => {
+    const checkStatus = async () => {
+      if (userId && listing.id) {
+        const favorited = await checkIsFavorited(userId, listing.id);
+        setIsFavorited(favorited);
+      }
+    };
+    checkStatus();
+  }, [userId, listing.id]);
 
   // Check if listing is new (less than 12 hours old)
   const isNew = React.useMemo(() => {
@@ -607,7 +620,18 @@ const ListingCard: React.FC<{ listing: any; onPress: () => void }> = ({ listing,
         <TouchableOpacity
           style={styles.favoriteButton}
           activeOpacity={0.7}
-          onPress={() => setIsFavorited(!isFavorited)}
+          onPress={async () => {
+            if (!userId) {
+              Alert.alert('Login Required', 'Please login to save items.');
+              return;
+            }
+            const { favorited, error } = await toggleFavorite(userId, listing.id);
+            if (error) {
+              Alert.alert('Error', 'Failed to update favorite status.');
+            } else if (favorited !== null) {
+              setIsFavorited(favorited);
+            }
+          }}
         >
           <Ionicons
             name={isFavorited ? "heart" : "heart-outline"}
@@ -1009,7 +1033,10 @@ export default function HomeScreen() {
             <Ionicons name="notifications-outline" size={24} color={colors.text} />
             <View style={styles.notificationDot} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navIconButton}>
+          <TouchableOpacity
+            style={styles.navIconButton}
+            onPress={() => router.push('/saved')}
+          >
             <Ionicons name="heart-outline" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
@@ -1102,6 +1129,7 @@ export default function HomeScreen() {
                 <ListingCard
                   listing={listing}
                   onPress={() => handleListingPress(listing)}
+                  userId={authUser?.id}
                 />
               </View>
             ))}

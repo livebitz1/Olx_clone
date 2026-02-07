@@ -81,6 +81,7 @@ export default function RootLayout() {
               <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="listing/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="saved" options={{ headerShown: false }} />
               <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
             </Stack>
           </NavigationGuard>
