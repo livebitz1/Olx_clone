@@ -13,6 +13,7 @@ import {
   Platform,
   Animated,
   Dimensions,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
@@ -333,10 +334,10 @@ export default function PostAdScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Post Your Ad</Text>
-          <Pressable onPress={() => setPreviewModalVisible(true)} style={styles.previewButton}>
-            <Feather name="eye" size={20} color="#2563eb" />
+          <TouchableOpacity onPress={() => setPreviewModalVisible(true)} style={styles.previewButton}>
+            <Feather name="eye" size={20} color="#FF4D00" />
             <Text style={styles.previewText}>Preview</Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -391,17 +392,25 @@ export default function PostAdScreen() {
 
           {/* Title */}
           <View style={styles.section}>
+            <View style={styles.sectionHeadingRow}>
+              <Ionicons name="information-circle-outline" size={22} color="#FF4D00" />
+              <Text style={styles.sectionTitle}>About the item</Text>
+            </View>
+
             <Text style={styles.label}>Title *</Text>
-            <TextInput
-              style={getInputStyle('title')}
-              placeholder="What are you selling?"
-              placeholderTextColor="#94a3b8"
-              value={formData.title}
-              onChangeText={(text) => updateField('title', text)}
-              onFocus={() => setFocusedField('title')}
-              onBlur={() => setFocusedField(null)}
-              maxLength={70}
-            />
+            <View style={styles.inputWithIcon}>
+              <Ionicons name="pricetag-outline" size={20} color="#64748b" style={styles.fieldIcon} />
+              <TextInput
+                style={[getInputStyle('title'), { flex: 1, borderWidth: 0, paddingLeft: 0 }]}
+                placeholder="What are you selling?"
+                placeholderTextColor="#94a3b8"
+                value={formData.title}
+                onChangeText={(text) => updateField('title', text)}
+                onFocus={() => setFocusedField('title')}
+                onBlur={() => setFocusedField(null)}
+                maxLength={70}
+              />
+            </View>
             <View style={styles.inputFooter}>
               {errors.title ? (
                 <Text style={styles.errorText}>{errors.title}</Text>
@@ -432,10 +441,18 @@ export default function PostAdScreen() {
             {errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
           </View>
 
+          <View style={styles.divider} />
+
           {/* Category */}
           <View style={styles.section}>
+            <View style={styles.sectionHeadingRow}>
+              <Ionicons name="grid-outline" size={22} color="#FF4D00" />
+              <Text style={styles.sectionTitle}>Classification</Text>
+            </View>
+
             <Text style={styles.label}>Category *</Text>
-            <Pressable
+            <TouchableOpacity
+              activeOpacity={0.7}
               style={[styles.selectButton, errors.category && styles.inputError]}
               onPress={() => setCategoryModalVisible(true)}
             >
@@ -445,7 +462,7 @@ export default function PostAdScreen() {
                     <Ionicons
                       name={CATEGORIES.find(c => c.name === formData.category)?.icon as any || 'grid-outline'}
                       size={20}
-                      color="#1e293b"
+                      color="#FF4D00"
                     />
                     <Text style={styles.selectText}>{formData.category}</Text>
                   </>
@@ -454,14 +471,15 @@ export default function PostAdScreen() {
                 )}
               </View>
               <Ionicons name="chevron-down" size={20} color="#64748b" />
-            </Pressable>
+            </TouchableOpacity>
             {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
           </View>
 
           {/* Condition */}
           <View style={styles.section}>
             <Text style={styles.label}>Condition</Text>
-            <Pressable
+            <TouchableOpacity
+              activeOpacity={0.7}
               style={styles.selectButton}
               onPress={() => setConditionModalVisible(true)}
             >
@@ -473,8 +491,10 @@ export default function PostAdScreen() {
                 )}
               </View>
               <Ionicons name="chevron-down" size={20} color="#64748b" />
-            </Pressable>
+            </TouchableOpacity>
           </View>
+
+          <View style={styles.divider} />
 
           {/* Location */}
           <View style={styles.section}>
@@ -496,6 +516,11 @@ export default function PostAdScreen() {
 
           {/* Description */}
           <View style={styles.section}>
+            <View style={styles.sectionHeadingRow}>
+              <Ionicons name="document-text-outline" size={22} color="#FF4D00" />
+              <Text style={styles.sectionTitle}>Details</Text>
+            </View>
+
             <Text style={styles.label}>Description *</Text>
             <TextInput
               style={[
@@ -520,6 +545,8 @@ export default function PostAdScreen() {
               <Text style={styles.charCount}>{formData.description.length}/1000</Text>
             </View>
           </View>
+
+          <View style={styles.divider} />
 
           {/* Tips Card */}
           <View style={styles.tipsCard}>
@@ -594,11 +621,11 @@ export default function PostAdScreen() {
                   }}
                 >
                   <View style={styles.categoryIcon}>
-                    <Ionicons name={category.icon as any} size={24} color="#2563eb" />
+                    <Ionicons name={category.icon as any} size={24} color="#FF4D00" />
                   </View>
                   <Text style={styles.categoryName}>{category.name}</Text>
                   {formData.category === category.name && (
-                    <Ionicons name="checkmark-circle" size={24} color="#2563eb" />
+                    <Ionicons name="checkmark-circle" size={24} color="#FF4D00" />
                   )}
                 </Pressable>
               ))}
@@ -638,7 +665,7 @@ export default function PostAdScreen() {
                     <Text style={styles.conditionDescription}>{condition.description}</Text>
                   </View>
                   {formData.condition === condition.name && (
-                    <Ionicons name="checkmark-circle" size={24} color="#2563eb" />
+                    <Ionicons name="checkmark-circle" size={24} color="#FF4D00" />
                   )}
                 </Pressable>
               ))}
@@ -738,7 +765,7 @@ const styles = StyleSheet.create({
   previewText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2563eb',
+    color: '#FF4D00',
   },
   scrollView: {
     flex: 1,
@@ -760,6 +787,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     marginBottom: 16,
+    lineHeight: 20,
+  },
+  sectionHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  divider: {
+    height: 8,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 12,
+  },
+  inputWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+  },
+  fieldIcon: {
+    marginRight: 10,
   },
   label: {
     fontSize: 15,
@@ -778,7 +829,7 @@ const styles = StyleSheet.create({
     color: '#1e293b',
   },
   inputFocused: {
-    borderColor: '#2563eb',
+    borderColor: '#FF4D00',
     backgroundColor: '#fff',
   },
   inputError: {
@@ -918,7 +969,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 6,
     left: 6,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#FF4D00',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
@@ -991,12 +1042,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#FF4D00',
     paddingVertical: 16,
     borderRadius: 14,
   },
   submitButtonDisabled: {
-    backgroundColor: '#93c5fd',
+    backgroundColor: '#FFB28C',
   },
   submitButtonText: {
     fontSize: 17,
@@ -1035,9 +1086,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   categoryItemSelected: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#FFF5F0',
     borderWidth: 1.5,
-    borderColor: '#2563eb',
+    borderColor: '#FF4D00',
   },
   categoryIcon: {
     width: 48,
@@ -1047,6 +1098,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
   categoryName: {
     flex: 1,
@@ -1063,9 +1116,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   conditionItemSelected: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#FFF5F0',
     borderWidth: 1.5,
-    borderColor: '#2563eb',
+    borderColor: '#FF4D00',
   },
   conditionInfo: {
     flex: 1,
@@ -1128,7 +1181,7 @@ const styles = StyleSheet.create({
   },
   previewCategory: {
     alignSelf: 'flex-start',
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#FFF5F0',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -1137,7 +1190,7 @@ const styles = StyleSheet.create({
   previewCategoryText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2563eb',
+    color: '#FF4D00',
   },
   previewDescriptionLabel: {
     fontSize: 16,
