@@ -158,7 +158,7 @@ export default function ProductDetails() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {/* Delete Confirmation Modal */}
       <Modal
         visible={deleteModalVisible}
@@ -196,49 +196,8 @@ export default function ProductDetails() {
         </View>
       </Modal>
 
-      {/* Enhanced header */}
-      <View style={styles.topBar}>
-        <Pressable
-          onPress={() => navigation?.goBack?.()}
-          style={styles.headerButton}
-          android_ripple={{ color: '#00000010', borderless: true }}
-        >
-          <Ionicons name="arrow-back" size={24} color={TEXT} />
-        </Pressable>
-
-        <View style={styles.headerActions}>
-          <Pressable
-            onPress={() => Alert.alert('Share', 'Share functionality')}
-            style={styles.headerButton}
-          >
-            <Ionicons name="share-outline" size={22} color={TEXT} />
-          </Pressable>
-          <Pressable
-            onPress={async () => {
-              if (!currentUserDbId) {
-                Alert.alert('Login Required', 'Please login to save items.');
-                return;
-              }
-              const { favorited, error } = await toggleFavorite(currentUserDbId, id);
-              if (error) {
-                Alert.alert('Error', 'Failed to update favorite status.');
-              } else if (favorited !== null) {
-                setIsFavorited(favorited);
-              }
-            }}
-            style={styles.headerButton}
-          >
-            <Ionicons
-              name={isFavorited ? "heart" : "heart-outline"}
-              size={22}
-              color={isFavorited ? "#EF4444" : TEXT}
-            />
-          </Pressable>
-        </View>
-      </View>
-
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Image carousel */}
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} bounces={false}>
+        {/* Image carousel with Overlayed Buttons */}
         <View style={styles.imageContainer}>
           <ScrollView
             ref={scrollRef}
@@ -249,9 +208,41 @@ export default function ProductDetails() {
             scrollEventThrottle={16}
           >
             {Array.isArray(product.images) && product.images.map((img: string, i: number) => (
-              <Image key={i} source={{ uri: img }} style={styles.image} resizeMode="cover" />
+              <Image key={i} source={{ uri: img }} style={styles.image} resizeMode="contain" />
             ))}
           </ScrollView>
+
+          {/* Floating Header Buttons */}
+          <View style={styles.floatingHeader}>
+            <Pressable
+              onPress={() => navigation?.goBack?.()}
+              style={styles.floatingButton}
+            >
+              <Ionicons name="arrow-back" size={24} color={TEXT} />
+            </Pressable>
+
+            <Pressable
+              onPress={async () => {
+                if (!currentUserDbId) {
+                  Alert.alert('Login Required', 'Please login to save items.');
+                  return;
+                }
+                const { favorited, error } = await toggleFavorite(currentUserDbId, id);
+                if (error) {
+                  Alert.alert('Error', 'Failed to update favorite status.');
+                } else if (favorited !== null) {
+                  setIsFavorited(favorited);
+                }
+              }}
+              style={styles.floatingButton}
+            >
+              <Ionicons
+                name={isFavorited ? "heart" : "heart-outline"}
+                size={24}
+                color={isFavorited ? "#EF4444" : TEXT}
+              />
+            </Pressable>
+          </View>
 
           <View style={styles.pagination}>
             {Array.isArray(product.images) && product.images.map((_: string, i: number) => (
@@ -264,158 +255,107 @@ export default function ProductDetails() {
               />
             ))}
           </View>
-
-          <View style={styles.imageCounter}>
-            <Ionicons name="images-outline" size={14} color="#FFF" />
-            <Text style={styles.imageCounterText}>
-              {activeIndex + 1}/{product.images.length}
-            </Text>
-          </View>
         </View>
 
-        {/* Main content card */}
-        <View style={styles.contentCard}>
-          {/* Price and title section */}
-          <View style={styles.priceSection}>
-            <View>
-              <Text style={styles.price}>₹{Number(product.price).toLocaleString()}</Text>
-              <Text style={styles.title}>{product.title}</Text>
-            </View>
+        {/* Main content */}
+        <View style={styles.contentSection}>
+          <Text style={styles.price}>Rs {Number(product.price).toLocaleString()} / month</Text>
+          <Text style={styles.title}>{product.title}</Text>
+
+          <View style={styles.tagRow}>
+            {product.condition && (
+              <View style={[styles.tag, styles.conditionTag]}>
+                <Text style={styles.conditionTagText}>{product.condition}</Text>
+              </View>
+            )}
+            {product.category && (
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>{product.category}</Text>
+              </View>
+            )}
           </View>
 
-          {/* Meta info pills */}
-          <View style={styles.metaRow}>
-            <View style={styles.metaPill}>
-              <Ionicons name="time-outline" size={14} color={MUTED} />
-              <Text style={styles.metaText}>{product.postedDate}</Text>
+          <View style={styles.metaInfoRow}>
+            <View style={styles.metaItem}>
+              <Ionicons name="location-outline" size={20} color={TEXT} />
+              <Text style={styles.metaItemText}>{product.location}</Text>
             </View>
-            <View style={styles.metaPill}>
-              <Ionicons name="eye-outline" size={14} color={MUTED} />
-              <Text style={styles.metaText}>{product.views} views</Text>
-            </View>
-            <View style={styles.metaPill}>
-              <Ionicons name="pricetag-outline" size={14} color={MUTED} />
-              <Text style={styles.metaText}>{product.category}</Text>
+            <View style={styles.metaItem}>
+              <Ionicons name="time-outline" size={20} color={TEXT} />
+              <Text style={styles.metaItemText}>Posted 10 days ago</Text>
             </View>
           </View>
-
-          <View style={styles.divider} />
-
-          {/* Location and condition */}
-          <View style={styles.infoRow}>
-            <View style={styles.infoItem}>
-              <View style={styles.infoIconCircle}>
-                <Ionicons name="location" size={18} color={ACCENT} />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Location</Text>
-                <Text style={styles.infoValue}>{product.location}</Text>
-              </View>
-            </View>
-
-            <View style={styles.infoItem}>
-              <View style={styles.infoIconCircle}>
-                <MaterialIcons name="verified" size={18} color="#10B981" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Condition</Text>
-                <Text style={styles.infoValue}>{product.condition}</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
 
           {/* Description */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Feather name="file-text" size={18} color={TEXT} />
-              <Text style={styles.sectionTitle}>Description</Text>
-            </View>
-            <Text style={styles.description}>{product.description}</Text>
+          <View style={styles.detailsGroup}>
+            <Text style={styles.groupTitle}>Description</Text>
+            <Text style={styles.descriptionText}>{product.description}</Text>
           </View>
 
-          <View style={styles.divider} />
-
-          {/* Seller card - only for non-owners */}
-          {!isOwner && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Ionicons name="person-circle-outline" size={18} color={TEXT} />
-                <Text style={styles.sectionTitle}>Seller Information</Text>
+          {/* Product Details */}
+          <View style={styles.detailsGroup}>
+            <Text style={styles.groupTitle}>Product Details</Text>
+            <View style={styles.specsList}>
+              <View style={styles.specItem}>
+                <Text style={styles.bullet}>•</Text>
+                <Text style={styles.specText}>{product.title}</Text>
               </View>
-              <View style={styles.sellerCard}>
-                <View style={styles.sellerLeft}>
-                  <Image source={sellerAvatar} style={styles.avatar} />
-                  <View style={styles.sellerInfo}>
-                    <View style={styles.sellerNameRow}>
-                      <Text style={styles.sellerName}>{sellerName}</Text>
-                      {product.user?.verified && (
-                        <MaterialIcons name="verified" size={16} color={ACCENT} />
-                      )}
-                    </View>
-                    <View style={styles.ratingRow}>
-                      <Ionicons name="star" size={14} color="#FFA500" />
-                      <Text style={styles.sellerRating}>{product.user?.rating}</Text>
-                      <Text style={styles.memberSince}>• {product.user?.memberSince}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                <Pressable
-                  style={styles.viewProfileButton}
-                  onPress={() => {
-                    router.push(`/profile/${product.user.id}`);
-                  }}
-                >
-                  <Text style={styles.viewProfileText}>View</Text>
-                  <Ionicons name="chevron-forward" size={16} color={ACCENT} />
-                </Pressable>
+              <View style={styles.specItem}>
+                <Text style={styles.bullet}>•</Text>
+                <Text style={styles.specText}>High Quality</Text>
               </View>
+              <View style={styles.specItem}>
+                <Text style={styles.bullet}>•</Text>
+                <Text style={styles.specText}>Condition: {product.condition}</Text>
+              </View>
+              <View style={styles.specItem}>
+                <Text style={styles.bullet}>•</Text>
+                <Text style={styles.specText}>Category: {product.category}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Seller Information */}
+          <View style={styles.detailsGroup}>
+            <Text style={styles.groupTitle}>Seller Information</Text>
+            <Pressable
+              style={styles.sellerMinimalCard}
+              onPress={() => router.push(`/profile/${product.user?.id}`)}
+            >
+              <Image source={sellerAvatar} style={styles.sellerAvatarSmall} />
+              <View style={styles.sellerInfoBrief}>
+                <Text style={styles.sellerNameBold}>{sellerName}</Text>
+                <Text style={styles.sellerMetaBrief}>Superhost • joined in 2024</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </Pressable>
+          </View>
+
+          {/* Owner specific messages */}
+          {isOwner && (
+            <View style={styles.ownerNotice}>
+              <Text style={styles.ownerNoticeText}>This is your listing. You can delete it below.</Text>
+              <Pressable style={styles.ownerDeleteButton} onPress={handleDelete}>
+                <Text style={styles.ownerDeleteButtonText}>Delete Listing</Text>
+              </Pressable>
             </View>
           )}
 
-          {/* Safety tips - only for non-owners */}
-          {!isOwner && (
-            <View style={styles.tipsCard}>
-              <View style={styles.tipsHeader}>
-                <Ionicons name="shield-checkmark" size={20} color="#10B981" />
-                <Text style={styles.tipsTitle}>Safety Tips</Text>
-              </View>
-              <Text style={styles.tipsText}>
-                {'• Meet in a public place\n• Check the item before purchasing\n• Pay only after collecting the item'}
-              </Text>
-            </View>
-          )}
-
-          {/* Owner-specific or public view */}
-          {isOwner ? (
-            <View style={{ marginVertical: 16, padding: 16, backgroundColor: '#E0F2FE', borderRadius: 12 }}>
-              <Text style={{ color: '#0369A1', fontWeight: '700', fontSize: 16, marginBottom: 6 }}>This is your listing</Text>
-              <Text style={{ color: '#0369A1', marginBottom: 10 }}>You can delete this post.</Text>
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <Pressable style={{ backgroundColor: '#EF4444', padding: 10, borderRadius: 8 }} onPress={handleDelete}>
-                  <Text style={{ color: '#FFF', fontWeight: '700' }}>Delete</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
+          <View style={{ height: 120 }} />
         </View>
-
-        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Action bar for non-owners only */}
+      {/* Fixed Primary Action Button */}
       {!isOwner && (
-        <View style={styles.actionBar}>
+        <View style={styles.footerAction}>
           <Pressable
-            style={[styles.actionButton, styles.chatButton]}
+            style={styles.chatWithSellerButton}
             onPress={async () => {
               if (!user) {
                 Alert.alert('Please log in', 'You need to be logged in to message the seller.');
                 return;
               }
-              if (user.id === product.user.id) {
+              if (user.id === product.user?.id) {
                 Alert.alert('Error', 'You cannot message yourself.');
                 return;
               }
@@ -430,18 +370,8 @@ export default function ProductDetails() {
               }
             }}
           >
-            <Ionicons name="chatbubble-outline" size={20} color={ACCENT} />
-            <Text style={styles.chatText}>Message</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.actionButton, styles.callButton]}
-            onPress={() => {
-              router.push(`/profile/${product.user.id}`);
-            }}
-          >
-            <Ionicons name="person" size={20} color="#FFF" />
-            <Text style={styles.callText}>View Profile</Text>
+            <Text style={styles.chatWithSellerText}>Chat with Seller</Text>
+            <Ionicons name="arrow-forward" size={20} color="#FFF" />
           </Pressable>
         </View>
       )}
@@ -449,10 +379,10 @@ export default function ProductDetails() {
   );
 }
 
-const ACCENT = '#2F80ED';
-const BG = '#F8FAFC';
+const ACCENT = '#FF4D00';
+const BG = '#FFFFFF';
 const CARD = '#FFFFFF';
-const TEXT = '#111827';
+const TEXT = '#000000';
 const MUTED = '#6B7280';
 
 const styles = StyleSheet.create({
@@ -460,330 +390,240 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BG,
   },
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    backgroundColor: CARD,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 4,
-  },
   container: {
     flex: 1,
   },
   imageContainer: {
     position: 'relative',
-    backgroundColor: '#000',
+    backgroundColor: '#F3F4F6',
+    height: IMAGE_HEIGHT,
   },
   image: {
     width: width,
     height: IMAGE_HEIGHT,
-    backgroundColor: '#F3F4F6',
+  },
+  floatingHeader: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 10,
+  },
+  floatingButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   pagination: {
     position: 'absolute',
-    bottom: 16,
+    bottom: 20,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FFF',
-    opacity: 0.5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#000',
+    opacity: 0.2,
   },
   dotActive: {
-    width: 20,
-    opacity: 1,
+    width: 24,
+    opacity: 0.8,
   },
-  imageCounter: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  imageCounterText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  contentCard: {
-    backgroundColor: CARD,
-    marginTop: -20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 20,
-    paddingHorizontal: 20,
-  },
-  priceSection: {
-    marginBottom: 16,
+  contentSection: {
+    padding: 24,
   },
   price: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
-    color: ACCENT,
-    marginBottom: 4,
+    color: '#000000',
+    marginBottom: 8,
+    letterSpacing: -0.5,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: TEXT,
-    lineHeight: 28,
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 16,
   },
-  metaRow: {
+  tagRow: {
     flexDirection: 'row',
     gap: 8,
     marginBottom: 20,
-    flexWrap: 'wrap',
   },
-  metaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: BG,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  tag: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 20,
   },
-  metaText: {
-    fontSize: 12,
-    color: MUTED,
+  tagText: {
+    fontSize: 14,
+    color: '#374151',
     fontWeight: '500',
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 20,
+  conditionTag: {
+    backgroundColor: '#DCFCE7',
   },
-  infoRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  infoItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  infoIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: BG,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 12,
-    color: MUTED,
-    marginBottom: 2,
-  },
-  infoValue: {
+  conditionTagText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: TEXT,
+    color: '#166534',
+    fontWeight: '500',
   },
-  section: {
-    marginBottom: 4,
+  metaInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+    marginBottom: 24,
   },
-  sectionHeader: {
+  metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  metaItemText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  detailsGroup: {
+    marginBottom: 24,
+  },
+  groupTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000000',
     marginBottom: 12,
   },
-  sectionTitle: {
+  descriptionText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#9CA3AF',
+  },
+  specsList: {
+    gap: 8,
+  },
+  specItem: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  bullet: {
+    fontSize: 20,
+    color: '#374151',
+  },
+  specText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  sellerMinimalCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    padding: 16,
+    borderRadius: 16,
+  },
+  sellerAvatarSmall: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  sellerInfoBrief: {
+    flex: 1,
+  },
+  sellerNameBold: {
     fontSize: 16,
     fontWeight: '700',
-    color: TEXT,
+    color: '#000000',
+    marginBottom: 2,
   },
-  description: {
+  sellerMetaBrief: {
     fontSize: 14,
-    lineHeight: 22,
-    color: MUTED,
+    color: '#9CA3AF',
   },
-  sellerCard: {
+  footerAction: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 24,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  chatWithSellerButton: {
+    backgroundColor: '#FF4D00',
+    height: 60,
+    borderRadius: 30,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: BG,
-    padding: 12,
-    borderRadius: 12,
+    paddingHorizontal: 24,
   },
-  sellerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: CARD,
-  },
-  sellerInfo: {
-    flex: 1,
-  },
-  sellerNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  sellerName: {
-    fontSize: 15,
+  chatWithSellerText: {
+    color: '#FFFFFF',
+    fontSize: 18,
     fontWeight: '700',
-    color: TEXT,
   },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  sellerRating: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: TEXT,
-  },
-  memberSince: {
-    fontSize: 12,
-    color: MUTED,
-  },
-  viewProfileButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: CARD,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 2,
-  },
-  viewProfileText: {
-    color: ACCENT,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  tipsCard: {
-    backgroundColor: '#F0FDF4',
+  ownerNotice: {
+    backgroundColor: '#FFF5F0',
     padding: 16,
-    borderRadius: 12,
-    marginTop: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: '#FFD7C2',
   },
-  tipsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  tipsTitle: {
+  ownerNoticeText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#166534',
+    color: '#FF4D00',
+    marginBottom: 12,
+    fontWeight: '600',
   },
-  tipsText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: '#15803D',
-  },
-  actionBar: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 20,
-    flexDirection: 'row',
-    gap: 12,
-    backgroundColor: 'transparent',
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+  ownerDeleteButton: {
+    backgroundColor: '#EF4444',
+    paddingVertical: 12,
     borderRadius: 12,
-    paddingVertical: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    alignItems: 'center',
   },
-  chatButton: {
-    backgroundColor: CARD,
-    borderWidth: 1.5,
-    borderColor: ACCENT,
-  },
-  chatText: {
-    color: ACCENT,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  callButton: {
-    backgroundColor: ACCENT,
-  },
-  callText: {
+  ownerDeleteButtonText: {
     color: '#FFF',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 14,
   },
-  // Delete Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-    alignItems: 'center',
     padding: 24,
   },
   deleteCard: {
     backgroundColor: '#FFF',
     borderRadius: 24,
     padding: 24,
-    width: '100%',
-    maxWidth: 340,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
   },
   trashCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
     backgroundColor: '#FEF2F2',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
   },
   deleteTitle: {
@@ -829,6 +669,6 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   disabledButton: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
 });
