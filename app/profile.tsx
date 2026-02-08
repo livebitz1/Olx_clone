@@ -37,9 +37,9 @@ const colors = {
   textSecondary: '#64748B',
   textTertiary: '#94A3B8',
   border: '#E2E8F0',
-  primary: '#2563EB',
-  primaryLight: '#EFF6FF',
-  primaryDark: '#1D4ED8',
+  primary: '#FF4D00',
+  primaryLight: '#FFF5F0',
+  primaryDark: '#CC3D00',
   success: '#10B981',
   successLight: '#D1FAE5',
   warning: '#F59E0B',
@@ -292,7 +292,7 @@ const EditProfileModal: React.FC<{
             <Text style={styles.modalTitle}>Edit Profile</Text>
             <TouchableOpacity onPress={handleSave} style={styles.modalSaveButton} disabled={isSaving || uploading}>
               {isSaving ? (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <ActivityIndicator size="small" color={colors.white} />
               ) : (
                 <Text style={styles.modalSaveText}>Save</Text>
               )}
@@ -301,48 +301,92 @@ const EditProfileModal: React.FC<{
 
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
             {/* Avatar Picker */}
-            <View style={{ alignItems: 'center', marginBottom: 24 }}>
-              <TouchableOpacity onPress={pickImage} disabled={uploading} style={{ alignItems: 'center' }}>
-                <Image
-                  source={avatar ? { uri: avatar } : DEFAULT_AVATAR}
-                  style={{ width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: colors.primaryLight }}
-                />
-                <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: colors.primary, borderRadius: 12, padding: 2 }}>
-                  {uploading ? (
-                    <ActivityIndicator size="small" color={colors.white} />
-                  ) : (
-                    <Ionicons name="camera" size={18} color={colors.white} />
-                  )}
+            <View style={{ alignItems: 'center', marginVertical: 32 }}>
+              <TouchableOpacity onPress={pickImage} disabled={uploading}>
+                <View style={{
+                  position: 'relative',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 10,
+                  elevation: 5,
+                  borderRadius: 60,
+                  backgroundColor: colors.white,
+                }}>
+                  <Image
+                    source={avatar ? { uri: avatar } : DEFAULT_AVATAR}
+                    style={{
+                      width: 120,
+                      height: 120,
+                      borderRadius: 60,
+                      borderWidth: 3,
+                      borderColor: colors.white,
+                    }}
+                  />
+                  <View style={{
+                    position: 'absolute',
+                    bottom: 4,
+                    right: 4,
+                    backgroundColor: colors.primary,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 3,
+                    borderColor: colors.white,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 4,
+                  }}>
+                    {uploading ? (
+                      <ActivityIndicator size="small" color={colors.white} />
+                    ) : (
+                      <Ionicons name="camera" size={20} color={colors.white} />
+                    )}
+                  </View>
                 </View>
               </TouchableOpacity>
-              <Text style={{ color: colors.textTertiary, fontSize: 13, marginTop: 6 }}>Tap to change photo</Text>
+              <Text style={{
+                color: colors.textSecondary,
+                fontSize: 14,
+                fontWeight: '600',
+                marginTop: 12
+              }}>Change Profile Picture</Text>
             </View>
 
             {/* Form Fields */}
             <View style={styles.formSection}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Full Name *</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Enter your full name"
-                  placeholderTextColor={colors.textTertiary}
-                />
+                <View style={styles.iconInput}>
+                  <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
+                  <TextInput
+                    style={[styles.textInput, styles.iconTextInput]}
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Enter your full name"
+                    placeholderTextColor={colors.textTertiary}
+                  />
+                </View>
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Bio</Text>
-                <TextInput
-                  style={[styles.textInput, styles.textArea]}
-                  value={bio}
-                  onChangeText={setBio}
-                  placeholder="Tell others about yourself..."
-                  placeholderTextColor={colors.textTertiary}
-                  multiline
-                  numberOfLines={3}
-                  maxLength={150}
-                />
+                <View style={[styles.iconInput, { alignItems: 'flex-start', paddingVertical: 12 }]}>
+                  <Ionicons name="create-outline" size={20} color={colors.textSecondary} style={{ marginTop: 2 }} />
+                  <TextInput
+                    style={[styles.textInput, styles.iconTextInput, styles.textArea]}
+                    value={bio}
+                    onChangeText={setBio}
+                    placeholder="Tell others about yourself..."
+                    placeholderTextColor={colors.textTertiary}
+                    multiline
+                    numberOfLines={3}
+                    maxLength={150}
+                  />
+                </View>
                 <Text style={styles.charCount}>{bio.length}/150</Text>
               </View>
 
@@ -446,7 +490,7 @@ const SettingsModal: React.FC<{
           <View style={styles.settingsCard}>
             <View style={styles.settingsItem}>
               <View style={styles.settingsItemLeft}>
-                <View style={[styles.settingsIcon, { backgroundColor: '#F1F5F9' }]}>
+                <View style={[styles.settingsIcon, { backgroundColor: colors.background }]}>
                   <Ionicons name="moon-outline" size={20} color={colors.text} />
                 </View>
                 <Text style={styles.settingsItemText}>Dark Mode</Text>
@@ -455,7 +499,7 @@ const SettingsModal: React.FC<{
                 value={darkMode}
                 onValueChange={setDarkMode}
                 trackColor={{ false: colors.border, true: colors.primaryLight }}
-                thumbColor={darkMode ? colors.primary : colors.textTertiary}
+                thumbColor={darkMode ? colors.primary : colors.white}
               />
             </View>
 
@@ -498,7 +542,7 @@ const SettingsModal: React.FC<{
 
             <TouchableOpacity style={styles.settingsItem}>
               <View style={styles.settingsItemLeft}>
-                <View style={[styles.settingsIcon, { backgroundColor: '#F1F5F9' }]}>
+                <View style={[styles.settingsIcon, { backgroundColor: colors.background }]}>
                   <Ionicons name="document-text-outline" size={20} color={colors.text} />
                 </View>
                 <Text style={styles.settingsItemText}>Terms of Service</Text>
@@ -608,6 +652,31 @@ const QuickStatsCard: React.FC<{ listings: Listing[] }> = ({ listings }) => {
   );
 };
 
+// Success Overlay Component
+const SuccessOverlay: React.FC<{ visible: boolean; message: string; onClose: () => void }> = ({ visible, message, onClose }) => {
+  useEffect(() => {
+    if (visible) {
+      const timer = setTimeout(onClose, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [visible, onClose]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal transparent visible={visible} animationType="fade">
+      <View style={styles.successOverlay}>
+        <View style={styles.successCard}>
+          <View style={styles.successCheckCircle}>
+            <Ionicons name="checkmark" size={32} color={colors.white} />
+          </View>
+          <Text style={styles.successText}>{message}</Text>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 // Main Profile Screen
 export default function ProfileScreen() {
   const router = useRouter();
@@ -622,6 +691,7 @@ export default function ProfileScreen() {
   const [activeTab, setActiveTab] = useState<'active' | 'sold'>('active');
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({ followers: 0, following: 0 });
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   // Fetch user's listings from Supabase
   const fetchListings = useCallback(async () => {
@@ -684,7 +754,7 @@ export default function ProfileScreen() {
       setIsSavingProfile(true);
       await updateUser(updates);
       setShowEditModal(false);
-      Alert.alert('Success', 'Profile updated successfully!');
+      setTimeout(() => setShowSuccessToast(true), 500);
     } catch (error) {
       console.error('[Profile] Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
@@ -784,6 +854,12 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
+
+      <SuccessOverlay
+        visible={showSuccessToast}
+        message="Profile updated successfully"
+        onClose={() => setShowSuccessToast(false)}
+      />
 
       {/* Top Bar */}
       <View style={styles.topBar}>
@@ -1621,6 +1697,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: colors.primary,
     borderRadius: 8,
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalSaveText: {
     fontSize: 14,
@@ -1693,8 +1772,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   textArea: {
-    height: 80,
+    height: 100,
     textAlignVertical: 'top',
+    paddingTop: 0,
   },
   charCount: {
     fontSize: 11,
@@ -1729,7 +1809,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    gap: 10,
+    gap: 12,
   },
   iconTextInput: {
     flex: 1,
@@ -1813,5 +1893,38 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     textAlign: 'center',
     marginTop: 24,
+  },
+  successOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successCard: {
+    backgroundColor: colors.white,
+    padding: 32,
+    borderRadius: 24,
+    alignItems: 'center',
+    width: width * 0.7,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  successCheckCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  successText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
   },
 });
