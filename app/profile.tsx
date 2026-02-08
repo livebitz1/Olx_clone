@@ -568,6 +568,7 @@ const SettingsModal: React.FC<{
 
 // Quick Stats Card Component
 const QuickStatsCard: React.FC<{ listings: Listing[] }> = ({ listings }) => {
+  const router = useRouter();
   const totalViews = listings.reduce((acc, l) => acc + l.views, 0);
   const totalLikes = listings.reduce((acc, l) => acc + l.likes, 0);
   const activeListings = listings.filter((l) => !l.isSold).length;
@@ -583,7 +584,11 @@ const QuickStatsCard: React.FC<{ listings: Listing[] }> = ({ listings }) => {
           <Text style={styles.quickStatsTitle}>Your Performance</Text>
           <Text style={styles.quickStatsSubtitle}>All time stats</Text>
         </View>
-        <TouchableOpacity style={styles.quickStatsMoreBtn} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.quickStatsMoreBtn}
+          activeOpacity={0.7}
+          onPress={() => router.push('/performance')}
+        >
           <Ionicons name="analytics-outline" size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
@@ -648,6 +653,19 @@ const QuickStatsCard: React.FC<{ listings: Listing[] }> = ({ listings }) => {
           </View>
         </View>
       </View>
+
+      {/* Professional Dashboard Button */}
+      <TouchableOpacity
+        style={styles.proDashboardButton}
+        activeOpacity={0.8}
+        onPress={() => router.push('/performance')}
+      >
+        <View style={styles.proDashboardContent}>
+          <Ionicons name="stats-chart" size={18} color={colors.primary} />
+          <Text style={styles.proDashboardText}>Professional Dashboard</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -1394,6 +1412,30 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
     gap: 2,
+  },
+
+  // Professional Dashboard Button
+  proDashboardButton: {
+    marginTop: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: colors.primaryLight,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 77, 0, 0.1)',
+  },
+  proDashboardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  proDashboardText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.primary,
   },
   trendBadgeSmall: {
     width: 16,
