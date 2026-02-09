@@ -50,7 +50,7 @@ const getResponsiveValue = (small: number, medium: number, large: number, xlarge
 
 // Calculate number of columns based on screen width
 const getNumColumns = () => {
-  if (width < BREAKPOINTS.SMALL) return 1;
+  if (width < BREAKPOINTS.SMALL) return 2; // Increased from 1 to 2 as requested
   if (width < BREAKPOINTS.MEDIUM) return 2;
   if (width < BREAKPOINTS.LARGE) return 3;
   return 4;
@@ -561,29 +561,17 @@ const CategoryCard: React.FC<{
   );
 };
 
-// Featured Listing Card Component
+// Featured Listing Card Component - Refined for 2-column grid density
 const ListingCard: React.FC<{ listing: any; onPress: () => void; userId?: string | null }> = ({ listing, onPress, userId }) => {
   const [isFavorited, setIsFavorited] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState(1); // Default square
 
-  // Determine image source: if images[0] is a string, treat as remote URL
+  // Determine image source
   const firstImage = listing.images && listing.images[0];
   const imageSource = firstImage
     ? (typeof firstImage === 'string'
       ? { uri: firstImage }
       : firstImage)
     : null;
-
-  // New: Fetch image aspect ratio to show whole image and adjust card size
-  useEffect(() => {
-    if (typeof firstImage === 'string') {
-      Image.getSize(firstImage, (width, height) => {
-        if (width && height) {
-          setAspectRatio(width / height);
-        }
-      });
-    }
-  }, [firstImage]);
 
   // Persistent Favorite Status
   useEffect(() => {
@@ -607,16 +595,16 @@ const ListingCard: React.FC<{ listing: any; onPress: () => void; userId?: string
 
   return (
     <TouchableOpacity style={styles.listingCard} onPress={onPress} activeOpacity={0.9}>
-      {/* Product Image Container */}
-      <View style={[styles.imageContainer, { aspectRatio }]}>
+      {/* Product Image Container - Fixed Aspect Ratio for clean grid UI */}
+      <View style={styles.imageContainer}>
         {imageSource ? (
-          <Image source={imageSource} style={styles.productImage} resizeMode="contain" />
+          <Image source={imageSource} style={styles.productImage} resizeMode="cover" />
         ) : (
           <View style={[styles.productImage, styles.imagePlaceholder]}>
-            <Ionicons name="image-outline" size={48} color={colors.textTertiary} />
+            <Ionicons name="image-outline" size={32} color={colors.textTertiary} />
           </View>
         )}
-        {/* Favorite Button */}
+        {/* Favorite Button - Slightly smaller for grid balance */}
         <TouchableOpacity
           style={styles.favoriteButton}
           activeOpacity={0.7}
@@ -635,12 +623,12 @@ const ListingCard: React.FC<{ listing: any; onPress: () => void; userId?: string
         >
           <Ionicons
             name={isFavorited ? "heart" : "heart-outline"}
-            size={20}
+            size={18}
             color={isFavorited ? colors.danger : colors.white}
           />
         </TouchableOpacity>
       </View>
-      {/* Product Details */}
+      {/* Product Details - Refined for density */}
       <View style={styles.listingDetails}>
         <View style={styles.priceRow}>
           <Text style={styles.priceText}>₹{Number(listing.price).toLocaleString()}</Text>
@@ -651,18 +639,18 @@ const ListingCard: React.FC<{ listing: any; onPress: () => void; userId?: string
           )}
         </View>
 
-        <Text style={styles.listingTitle} numberOfLines={2}>
+        <Text style={styles.listingTitle} numberOfLines={1}>
           {listing.title}
         </Text>
 
         <View style={styles.locationContainer}>
-          <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+          <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
           <Text style={styles.locationText} numberOfLines={1}>
             {listing.location}
           </Text>
         </View>
 
-        {/* Footer with Seller Info */}
+        {/* Footer with Seller Info - Clean & Minimal */}
         <View style={styles.listingFooter}>
           <View style={styles.sellerInfo}>
             {listing.user && listing.user.avatar ? (
@@ -673,15 +661,14 @@ const ListingCard: React.FC<{ listing: any; onPress: () => void; userId?: string
               />
             ) : (
               <View style={[styles.sellerAvatar, styles.imagePlaceholder]}>
-                <Ionicons name="person-circle-outline" size={32} color={colors.textTertiary} />
+                <Ionicons name="person-circle-outline" size={24} color={colors.textTertiary} />
               </View>
             )}
-            {/* Show seller name instead of rating */}
             <Text style={styles.sellerName} numberOfLines={1}>
-              {listing.user && listing.user.name ? listing.user.name : 'Seller'}
+              {listing.user && listing.user.name ? listing.user.name.split(' ')[0] : 'Seller'}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+          <Ionicons name="chevron-forward" size={14} color={colors.primary} />
         </View>
       </View>
     </TouchableOpacity>
@@ -1114,25 +1101,34 @@ export default function HomeScreen() {
           <View style={[
             styles.listingsGrid,
             {
-              flexDirection: numColumns === 1 ? 'column' : 'row',
-              flexWrap: numColumns > 1 ? 'wrap' : 'nowrap'
+              flexDirection: 'row', // Always horizontal for grid
+              flexWrap: 'wrap'
             }
           ]}>
-            {filtered.map((listing) => (
-              <View
-                key={listing.id}
-                style={[
-                  styles.listingCardWrapper,
-                  { width: numColumns === 1 ? '100%' : `${100 / numColumns}%` }
-                ]}
-              >
-                <ListingCard
-                  listing={listing}
-                  onPress={() => handleListingPress(listing)}
-                  userId={authUser?.id}
-                />
-              </View>
-            ))}
+            {filtered.map((listing) => {
+              // Calculate width precisely for the grid to fit side-by-side
+              // Container width = width - (horizontal padding 12*2)
+              // Total gap space = 8 * (numColumns - 1)
+              const containerWidth = width - 24;
+              const gapSpace = 8 * (numColumns - 1);
+              const cardWidth = (containerWidth - gapSpace) / numColumns;
+
+              return (
+                <View
+                  key={listing.id}
+                  style={[
+                    styles.listingCardWrapper,
+                    { width: cardWidth }
+                  ]}
+                >
+                  <ListingCard
+                    listing={listing}
+                    onPress={() => handleListingPress(listing)}
+                    userId={authUser?.id}
+                  />
+                </View>
+              );
+            })}
 
           </View>
 
@@ -1485,12 +1481,13 @@ const styles = StyleSheet.create({
 
   // Listings Grid
   listingsGrid: {
-    paddingHorizontal: 16,
-    gap: 16,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8, // Using gap for consistent spacing between columns
   },
   listingCardWrapper: {
-    paddingHorizontal: 4,
-    marginBottom: 16,
+    marginBottom: 12, // Only vertical spacing needed here
   },
   listingCard: {
     backgroundColor: colors.white,
@@ -1509,6 +1506,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     position: 'relative',
     width: '100%',
+    aspectRatio: 1, // Enforced square aspect for uniformity
     backgroundColor: colors.background,
   },
   productImage: {
@@ -1521,11 +1519,11 @@ const styles = StyleSheet.create({
   },
   favoriteButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    top: 8,
+    right: 8,
+    width: 32, // Slightly smaller
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1533,7 +1531,7 @@ const styles = StyleSheet.create({
 
   // Listing Details
   listingDetails: {
-    padding: 16,
+    padding: 12, // Reduced from 16 for density
   },
   priceRow: {
     flexDirection: 'row',
@@ -1542,7 +1540,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   priceText: {
-    fontSize: 20,
+    fontSize: 18, // Reduced from 20 for grid fit
     fontWeight: '800',
     color: colors.primary,
   },
@@ -1558,11 +1556,11 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   listingTitle: {
-    fontSize: 16,
+    fontSize: 14, // Reduced from 16
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 8,
-    lineHeight: 22,
+    marginBottom: 6,
+    lineHeight: 18,
   },
   locationContainer: {
     flexDirection: 'row',

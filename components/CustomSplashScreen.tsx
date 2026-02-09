@@ -8,6 +8,7 @@ import {
     StatusBar,
     Easing,
 } from 'react-native';
+import { Svg, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -18,28 +19,18 @@ interface CustomSplashScreenProps {
 export default function CustomSplashScreen({ onAnimationComplete }: CustomSplashScreenProps) {
     const fadeAnim = useRef(new Animated.Value(1)).current;
     const spinAnim = useRef(new Animated.Value(0)).current;
-    const taglineFadeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        // Rotation animation for the loading spinner
+        // Smooth and steady rotation
         Animated.loop(
             Animated.timing(spinAnim, {
                 toValue: 1,
-                duration: 1500,
+                duration: 1000,
                 easing: Easing.linear,
                 useNativeDriver: true,
             })
         ).start();
 
-        // Tagline fade in animation
-        Animated.timing(taglineFadeAnim, {
-            toValue: 1,
-            duration: 1000,
-            delay: 500,
-            useNativeDriver: true,
-        }).start();
-
-        // After a delay, fade out the splash screen
         const timer = setTimeout(() => {
             Animated.timing(fadeAnim, {
                 toValue: 0,
@@ -50,44 +41,71 @@ export default function CustomSplashScreen({ onAnimationComplete }: CustomSplash
                     onAnimationComplete();
                 }
             });
-        }, 3000); // Show for 3 seconds
+        }, 3000);
 
         return () => clearTimeout(timer);
-    }, [onAnimationComplete]);
+    }, [onAnimationComplete, spinAnim, fadeAnim]);
 
     const spin = spinAnim.interpolate({
         inputRange: [0, 1],
         outputRange: ['0deg', '360deg'],
     });
 
+    const renderWaves = () => {
+        // Mirrored high-precision logic from Onboarding for absolute entry-flow consistency
+        const pathData = "M -100 500 C 50 500, 150 100, 400 350 S 700 -200, 950 -50";
+        const offsets = [0, 40, 80, 120];
+
+        return (
+            <View style={styles.designContainer}>
+                <Svg height="650" width={SCREEN_WIDTH + 200} viewBox={`0 0 ${SCREEN_WIDTH + 200} 650`}>
+                    {offsets.map((offset, i) => (
+                        <Path
+                            key={i}
+                            d={pathData}
+                            fill="none"
+                            stroke="#FF4D00"
+                            strokeWidth="3.2"
+                            strokeOpacity={0.75 - i * 0.18}
+                            transform={`translate(0, ${offset})`}
+                        />
+                    ))}
+                </Svg>
+            </View>
+        );
+    };
+
     return (
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-            <StatusBar barStyle="light-content" backgroundColor="#FF4D00" />
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-            {/* Design Elements: Wavy lines at the top */}
-            <View style={styles.designContainer}>
-                <View style={[styles.arc, styles.arc1]} />
-                <View style={[styles.arc, styles.arc2]} />
-                <View style={[styles.arc, styles.arc3]} />
-                <View style={[styles.arc, styles.arc4]} />
-            </View>
+            {renderWaves()}
 
-            {/* Center Logo/Text */}
+            {/* Iconic Centered Brand Logo */}
             <View style={styles.logoContainer}>
                 <Text style={styles.logoText}>Abhibecho</Text>
-                <Animated.Text style={[styles.taglineText, { opacity: taglineFadeAnim }]}>
-                    anything anywhere
-                </Animated.Text>
             </View>
 
-            {/* Bottom Loading Indicator */}
+            {/* Custom Fading Tail Gradient Loader */}
             <View style={styles.loaderContainer}>
-                <Animated.View
-                    style={[
-                        styles.spinner,
-                        { transform: [{ rotate: spin }] }
-                    ]}
-                />
+                <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                    <Svg width="56" height="56" viewBox="0 0 56 56">
+                        <Defs>
+                            <LinearGradient id="tailGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <Stop offset="0%" stopColor="#FF4D00" stopOpacity="1" />
+                                <Stop offset="60%" stopColor="#FF4D00" stopOpacity="0.4" />
+                                <Stop offset="100%" stopColor="#FF4D00" stopOpacity="0" />
+                            </LinearGradient>
+                        </Defs>
+                        <Path
+                            d="M 28 4 A 24 24 0 0 1 52 28"
+                            fill="none"
+                            stroke="url(#tailGrad)"
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                        />
+                    </Svg>
+                </Animated.View>
             </View>
         </Animated.View>
     );
@@ -96,81 +114,33 @@ export default function CustomSplashScreen({ onAnimationComplete }: CustomSplash
 const styles = StyleSheet.create({
     container: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: '#FF4D00',
+        backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 10000,
     },
     designContainer: {
         position: 'absolute',
-        top: -SCREEN_HEIGHT * 0.25,
-        left: -SCREEN_WIDTH * 0.4,
-        width: SCREEN_WIDTH * 2,
-        height: SCREEN_HEIGHT * 0.8,
-    },
-    arc: {
-        position: 'absolute',
-        borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.45)',
-        borderRadius: 2000,
-    },
-    arc1: {
-        width: SCREEN_WIDTH * 1.8,
-        height: SCREEN_WIDTH * 1.8,
-        top: 50,
-        left: 50,
-    },
-    arc2: {
-        width: SCREEN_WIDTH * 1.8,
-        height: SCREEN_WIDTH * 1.8,
-        top: 100,
-        left: 100,
-        borderColor: 'rgba(255, 255, 255, 0.35)',
-    },
-    arc3: {
-        width: SCREEN_WIDTH * 1.8,
-        height: SCREEN_WIDTH * 1.8,
-        top: 150,
-        left: 150,
-        borderColor: 'rgba(255, 255, 255, 0.25)',
-    },
-    arc4: {
-        width: SCREEN_WIDTH * 1.8,
-        height: SCREEN_WIDTH * 1.8,
-        top: 200,
-        left: 200,
-        borderColor: 'rgba(255, 255, 255, 0.15)',
+        top: -120, // Final fine-tuning: Shifted up by another 50px (Total -120)
+        left: -100,
+        width: SCREEN_WIDTH + 200,
+        height: 650,
     },
     logoContainer: {
         justifyContent: 'center',
         alignItems: 'center',
+        marginTop: 20, // Fine-tuned vertical positioning
     },
     logoText: {
-        fontSize: 52,
+        fontSize: 74,
         fontWeight: '900',
-        color: '#FFFFFF',
-        letterSpacing: -1,
-    },
-    taglineText: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: 'rgba(255, 255, 255, 0.9)',
-        marginTop: -4,
-        letterSpacing: 1.2,
-        textTransform: 'lowercase',
+        color: '#FF4D00',
+        letterSpacing: -3.5, // Absolute compact logo
     },
     loaderContainer: {
         position: 'absolute',
-        bottom: 80,
+        bottom: 110,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    spinner: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        borderWidth: 5,
-        borderColor: 'rgba(255, 255, 255, 0.2)',
-        borderTopColor: '#FFFFFF',
     },
 });
